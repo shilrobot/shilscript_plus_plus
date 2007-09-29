@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual C++ Express 2005
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SS++", "SS++.vcproj", "{9C93847D-A189-42F2-BB92-A338B010E95E}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GCTest", "..\GCTest\GCTest.vcproj", "{BAD816D7-2F09-4F32-AC78-3A0370BD5D02}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9C93847D-A189-42F2-BB92-A338B010E95E}.Debug|Win32.ActiveCfg = Debug|Win32
+		{9C93847D-A189-42F2-BB92-A338B010E95E}.Debug|Win32.Build.0 = Debug|Win32
+		{9C93847D-A189-42F2-BB92-A338B010E95E}.Release|Win32.ActiveCfg = Release|Win32
+		{9C93847D-A189-42F2-BB92-A338B010E95E}.Release|Win32.Build.0 = Release|Win32
+		{BAD816D7-2F09-4F32-AC78-3A0370BD5D02}.Debug|Win32.ActiveCfg = Debug|Win32
+		{BAD816D7-2F09-4F32-AC78-3A0370BD5D02}.Debug|Win32.Build.0 = Debug|Win32
+		{BAD816D7-2F09-4F32-AC78-3A0370BD5D02}.Release|Win32.ActiveCfg = Release|Win32
+		{BAD816D7-2F09-4F32-AC78-3A0370BD5D02}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
