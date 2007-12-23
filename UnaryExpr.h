@@ -32,6 +32,30 @@ public:
 	SS_GETSET(UnaryOp, Op, m_op);
 	SS_GETSET(Expr*, Operand, m_operand);
 
+	String GetPrefixOpName() const
+	{
+		switch(m_op)
+		{
+		case UNOP_PRE_INC: return "++";
+		case UNOP_PRE_DEC: return "--";
+		case UNOP_LOG_NOT: return "!";
+		case UNOP_COMPLEMENT: return "~";
+		case UNOP_NEGATIVE: return "-";
+		case UNOP_POSITIVE: return "+";
+		default: return "";
+		}
+	}
+
+	String GetPostfixOpName() const
+	{
+		switch(m_op)
+		{
+		case UNOP_POST_INC: return "++";
+		case UNOP_POST_DEC: return "--";
+		default: return "";
+		}
+	}
+
 	// TODO: Other expr. stuff
 
 private:

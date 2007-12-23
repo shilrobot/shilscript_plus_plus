@@ -136,7 +136,13 @@ classModifier[Class* cls]
 //		 So a lot of this null behavior is unnecessary.
 
 funcDef returns [Function* func = new Function()]
-	:	funcSig[func] (blockStmt | SEMI)
+	{
+		Statement* body = 0;
+	}
+	:	funcSig[func] (body=blockStmt | SEMI)
+	{
+		func->SetBody(body);
+	}
 	;
 	
 funcSig[Function* func]
@@ -477,7 +483,7 @@ literal returns[Expr* expr = 0]
 	|	"this"					{ SSAssert(0); } // TODO
 	|	"null"					{ expr = new NullLiteralExpr(); }
 	|	"global"				{ SSAssert(0); } // TODO
-	|	"super"					{ SSAssert(0); } // TODO
+	|	"super"					{ SSAssert(0); } // TODO - use 'base'?
 	;
 		
 //----------------------------------------------------------------------------

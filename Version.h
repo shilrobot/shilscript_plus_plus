@@ -7,6 +7,4 @@
 #define SS_VERSION_MINOR 0
 #define SS_VERSION_STRING "0.0a"
 
-//#define XYZ
-
 #endif // SS_VERSION_H

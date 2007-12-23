@@ -5,5 +5,8 @@
 
 class Foo
 {
-	int foobar( int y) {}
+	int foobar(int y)
+	{
+		TernaryExpr = (TernaryExpr)(expr);
+	}
 }

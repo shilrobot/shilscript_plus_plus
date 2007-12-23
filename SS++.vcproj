@@ -382,6 +382,10 @@
 				Name="Exprs"
 				>
 				<File
+					RelativePath=".\AllExprs.h"
+					>
+				</File>
+				<File
 					RelativePath=".\AssignExpr.h"
 					>
 				</File>

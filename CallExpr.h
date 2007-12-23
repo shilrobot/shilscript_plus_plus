@@ -16,9 +16,10 @@ public:
 
 	SS_GETSET(Expr*, Left, m_left);
 	SS_ADD(Expr*, AddParameter, m_params);
+	SS_INDEX(Expr*, Parameter, m_params);
 private:
 	Expr*				m_left;
-	std::list<Expr*>	m_params;
+	std::vector<Expr*>	m_params;
 };
 
 }

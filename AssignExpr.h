@@ -23,6 +23,30 @@ public:
 	SS_GETSET(Expr*, Left, m_left);
 	SS_GETSET(Expr*, Right, m_right);
 
+	
+	String GetOpName() const
+	{
+		switch(m_op)
+		{
+		case BINOP_ADD: return "+=";
+		case BINOP_SUB: return "-=";
+		case BINOP_MUL: return "*=";
+		case BINOP_DIV: return "/=";
+		case BINOP_MOD: return "%=";
+		case BINOP_POW: return "**=";
+		case BINOP_BIT_AND: return "&=";
+		case BINOP_BIT_OR: return "|=";
+		case BINOP_BIT_XOR: return "^=";
+		case BINOP_LOG_AND: return "&&=";
+		case BINOP_LOG_OR: return "||=";
+		case BINOP_SHL: return "<<=";
+		case BINOP_SHR: return ">>=";
+		case BINOP_NONE: return "=";
+		default:
+			return "<INVALID ASSIGN OP>";
+		}
+	}
+
 	// TODO: Other expr. stuff
 
 private:

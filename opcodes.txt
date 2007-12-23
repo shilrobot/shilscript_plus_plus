@@ -1,0 +1,118 @@
+Control Flow
+============
+jmp <idx> {} -> {}
+jmp_true <idx> {} -> {}
+jmp_false <idx> {} -> {}
+ret {[x]} -> NA   (NOTE: If function returns void, doesn't pop anything; if it returns something, pops that type.)
+nop {} -> {}
+
+Arithmetic
+==========
+add {a, b} -> {c}
+sub {a, b} -> {c}
+mul {a, b} -> {c}
+div {a, b} -> {c}
+mod {a, b} -> {c}
+shl {a, b} -> {c}
+shr {a, b} -> {c}
+(TODO: Separate sar and shr, for sign extend & zero extend?)
+inv {a} -> {b} (Bitwise complement -- maybe this is so rare that we can just XOR by all one's though -- become NOT?)
+and {a, b} -> {c}
+or  {a, b} -> {c}
+xor {a, b} -> {c}
+neg {a} -> {b}
+pow {a, b} -> {c}
+inc {a} -> {b} (Utility quick stuff)
+dec {a} -> {b} (Utility quick stuff)
+
+Logic (Are these necessary? -- Maybe if you do inv, and, or on bools this is what happens)
+=====
+log_and {a, b} -> {c}
+log_or {a, b} -> {c}
+log_not {a} -> {b}
+
+Comparison
+==========
+eq {a, b} -> {c}
+ne {a, b} -> {c}
+le {a, b} -> {c}
+lt {a, b} -> {c}
+ge {a, b} -> {c}
+gt {a, b} -> {c}
+
+Conversion
+==========
+to_<T> {a} -> {b}  (Also handles unboxing)
+to_class <Class> {a} -> {b}  (Also handles boxing)
+
+Immediates
+==========
+load_zero_<T> {} -> {zero} (Convenience)
+load_one_<T> {} -> {one} (Convenience)
+load_imm_<T> <Val> {} -> {val}
+
+Arguments
+=========
+load_arg <N> {} -> {a} (N is <= 255)
+store_arg <N> {a} -> {} (You can actually modify argument vars. Maybe these should be 'locals' though?)
+
+Locals
+======
+load_local <N> {} -> {a} (N is <= 65535, unless we want a long option or something?)
+store_local <N> {a} -> {} (See above)
+
+Arrays
+======
+TODO: new_array? Are these just for implementing [] in general or is array a special type?
+load_array {arr, idx} -> {a}
+store_array {arr, idx, val} -> {}
+
+Objects
+=======
+new <Class> {<constructor args>} -> {a} (NEEDS TO SPECIFIY WHICH CTOR!!)
+instanceof <Class> {a} -> {b}
+load_null {} -> {a}
+load_this {} -> {a}
+load_field <ID> {inst} -> {val}
+store_field <ID> {inst, val} -> {}
+load_static <Class> <ID> {} -> {val} (These also handle constants)
+store_static <Class> <ID> {val} -> {} (These also handle constants)
+load_global <ID> {} -> {val} 
+store_global <ID> {val} -> {} (We may nix store_global)
+call_method <Method> {inst, <args>} -> {retval}
+call_static <Class> <Method> {<args>} -> {retval}
+call_global <Method> {<args>} -> {retval}
+TODO: typeof?
+load_enum <EnumType> <ValName> {} -> {retval}
+
+Exceptions
+==========
+throw {a} -> NA (throws an exception - operand stack is nuked, execution resumes at first catch handler that handles this)
+load_exc {} -> {a} (loads exception from catch parameter)
+begin_try {} -> {} (begins a try-block)
+end_try {} -> {} (jumps to finally if there was one, otherwise falls through)
+catch_handler <type> <label> {} -> {} (only valid in blocks right after begin_try)
+finally_handler <label> {} -> {} (only valid in blocks right after begin_try)
+end_finally {} -> NA (exits from a finally block to wherever depending on how it was entered)
+
+The other option is to do what Java does and store exception handler ranges.
+
+Stack
+=====
+dup {a} -> {a, a}
+dup2 {a, b} -> {a, b, a, b}
+pop {a} -> {}
+swap {a,b} -> {b,a}
+TODO: Possibly more like dup2x or whatever
+
+Miscellaneous
+=============
+break {} -> NA (Debug, for 'code should not get here' -- Will also have an 'int 3' equiv. instr. so we can rewrite it for quick debug break maybe)
+  Code with this instr. should fail 'actual' validation probably
+print {a} -> {} (Debug)
+
+Outstanding Stuff
+=================
+-- Strings!
+-- Assert, etc. -- way to turn these off at runtime? Or at least after BC is interpreted? Maybe they're always on?
+-- Debugging info, e.g. line number info

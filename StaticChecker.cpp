@@ -4,6 +4,8 @@
 #include "Variable.h"
 #include "Function.h"
 #include "TypeLookup.h"
+#include "Statement.h"
+#include "AllExprs.h"
 
 namespace SS {
 
@@ -332,11 +334,6 @@ bool StaticChecker::CheckFunction(Function* func)
 	return true;
 }
 
-void StaticChecker::CheckFunctionBody(Function* func)
-{
-	
-}
-
 bool StaticChecker::CheckChild(Node* parent, Node* child)
 {
 	SSAssert(parent != 0);
@@ -370,6 +367,299 @@ bool StaticChecker::CheckChild(Node* parent, Node* child)
 	}
 
 	return true;
+}
+
+void StaticChecker::CheckFunctionBody(Function* func)
+{
+	StatementContext ctx;
+	Scope scope;
+	ctx.func = func;
+	ctx.scope = &scope;
+
+	// TODO: Don't compile abstract funcs, of course -- etc.
+	SSAssert(func->GetBody());
+	CheckStatement(func->GetBody(), ctx);
+}
+
+void StaticChecker::CheckStatement(Statement* stmt, const StatementContext& ctx)
+{
+	if(stmt->IsA<EmptyStatement>())
+	{
+		// Nothing to do :)
+	}
+	else if(stmt->IsA<BreakStatement>())
+	{
+		// Check that break makes sense here
+		if(!ctx.canBreak)
+			ReportError(stmt, "Break statement is not valid here");
+	}
+	else if(stmt->IsA<ContinueStatement>())
+	{
+		// Check that continue makes sense here
+		if(!ctx.canContinue)
+			ReportError(stmt, "Continue statement is not valid here");
+	}
+	else if(stmt->IsA<ReturnStatement>())
+	{
+		ReturnStatement* returnStmt = dynamic_cast<ReturnStatement*>(stmt);
+
+		// Function returns void
+		if(ctx.func->GetReturnType() == BasicType::GetBasicType(BT_VOID))
+		{
+			if(returnStmt->GetExpr() != 0)
+				ReportError(stmt, "Cannot specify a return value for a void function");
+		}
+		else
+		{
+			if(returnStmt->GetExpr() == 0)
+				ReportError(stmt, "Must specify a return value");
+			else
+			{
+				// TODO: Check expr is of correct type
+				SSAssert(0);
+			}
+		}
+	}
+	else if(stmt->IsA<ThrowStatement>())
+	{
+		// TODO: Check that the expr is valid, and that it produces some kind of object we can throw
+		SSAssert(0);
+	}
+	else if(stmt->IsA<BlockStatement>())
+	{
+		BlockStatement* blockStmt = dynamic_cast<BlockStatement*>(stmt);
+
+		StatementContext newCtx(ctx);
+		Scope scope;
+		newCtx.scope = &scope;
+		newCtx.parent = &ctx;
+
+		for(int i=0; i < blockStmt->GetStatementCount(); ++i)
+			CheckStatement(blockStmt->GetStatement(i), newCtx);
+	}
+	else if(stmt->IsA<ExprStatement>())
+	{
+		ExprStatement* exprStmt = dynamic_cast<ExprStatement*>(stmt);
+
+		std::cout << DumpExpr(exprStmt->GetExpr()) << std::endl;
+
+		ExprContext exprCtx;
+		exprCtx.stmtCtx = &ctx;
+		exprCtx.lvalue = false;
+
+		Expr* xformed = CheckAndTransformExpr(exprStmt->GetExpr(), exprCtx);
+		exprStmt->SetExpr(xformed);
+
+		// TODO: Make sure return type of expr isn't a "pseudovalue" like, say, a function
+		//		 (which currently isn't in the type system, and thus can't properly
+		//		  be 'popped')
+	}
+	// todo: if
+	// todo: while
+	// todo: do-while
+	// todo: for
+	// todo: foreach
+	// todo: switch
+	// todo: try-catch
+	// todo: variable def.
+	else
+	{
+		// Not implemented...
+		SSAssert(0);
+	}
+}
+
+bool StaticChecker::IsInteger(Type* type) const
+{
+	// TODO: char
+	return (type == SS_T_BYTE ||
+			type == SS_T_SBYTE ||
+			type == SS_T_USHORT ||
+			type == SS_T_SHORT ||
+			type == SS_T_UINT ||
+			type == SS_T_INT ||
+			type == SS_T_ULONG ||
+			type == SS_T_LONG);
+}
+
+bool StaticChecker::IsNumber(Type* type) const
+{
+	// TODO: char
+	return (type == SS_T_BYTE ||
+			type == SS_T_SBYTE ||
+			type == SS_T_USHORT ||
+			type == SS_T_SHORT ||
+			type == SS_T_UINT ||
+			type == SS_T_INT ||
+			type == SS_T_ULONG ||
+			type == SS_T_LONG ||
+			type == SS_T_FLOAT ||
+			type == SS_T_DOUBLE);
+}
+
+Type* StaticChecker::WidenNumbers(Type* a, Type* b)
+{
+	if(a == SS_T_DOUBLE || b == SS_T_DOUBLE)
+		return SS_T_DOUBLE;
+	else if(a == SS_T_FLOAT || b == SS_T_FLOAT)
+		return SS_T_FLOAT;
+	// TODO: THE REST!
+	SSAssertM(0, "Not Implemented");	
+}
+
+Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
+{
+	if(expr->IsA<BinaryExpr>())
+	{
+		BinaryExpr* binExpr = dynamic_cast<BinaryExpr*>(expr);
+
+		Expr* left = CheckAndTransformExpr(binExpr->GetLeft(), ctx);
+		Expr* right = CheckAndTransformExpr(binExpr->GetRight(), ctx);
+		SSAssert(left);
+		SSAssert(right);
+
+		// TODO: Maybe there's a better way to do error signaling than this
+		//		 Use NULL exprs?
+		if(left->IsA<ErrorExpr>() ||
+			right->IsA<ErrorExpr>())
+		{
+			return new ErrorExpr();
+		}
+
+		Type* leftType = left->GetResultType();
+		Type* rightType = right->GetResultType();
+		SSAssert(leftType);
+		SSAssert(rightType);
+
+		switch(binExpr->GetOp())
+		{
+		case BINOP_ADD:
+		case BINOP_SUB:
+		case BINOP_MUL:
+		case BINOP_DIV:
+		case BINOP_POW:
+			{
+				if(!IsNumber(leftType) || !IsNumber(rightType))
+				{
+					// TODO: Better type reporting crap
+					ReportError(expr, "Cannot apply operator %s to operands of type '%s' and '%s'",
+									binExpr->GetOpName().c_str(),
+									leftType->GetDesc().c_str(),
+									rightType->GetDesc().c_str());
+					return new ErrorExpr();
+				}
+
+				Type* widerType = WidenNumbers(leftType, rightType);
+
+
+
+			}
+		// TODO: The rest
+		}
+	}
+	else
+		return 0;
+}
+
+// Debug dump of an expr to check that it's processing correctly
+String StaticChecker::DumpExpr(Expr* expr) const
+{
+	if(expr == 0)
+	{
+		return "<NULL>";
+	}
+	else if(expr->IsA<AssignExpr>())
+	{
+		AssignExpr* assignExpr = dynamic_cast<AssignExpr*>(expr);
+		return "(" + DumpExpr(assignExpr->GetLeft()) + " " + assignExpr->GetOpName() + " " +
+					DumpExpr(assignExpr->GetRight()) + ")";
+	}
+	else if(expr->IsA<BinaryExpr>())
+	{
+		BinaryExpr* binExpr = dynamic_cast<BinaryExpr*>(expr);
+		return "(" + DumpExpr(binExpr->GetLeft()) + " " + binExpr->GetOpName() + " " +
+					DumpExpr(binExpr->GetRight()) + ")";
+	}
+	else if(expr->IsA<CallExpr>())
+	{
+		CallExpr* callExpr = dynamic_cast<CallExpr*>(expr);
+		String s = "call(" + DumpExpr(callExpr->GetLeft());
+		for(int i=0; i < callExpr->GetParameterCount(); ++i)
+		{
+			s += ", ";
+			s += DumpExpr(callExpr->GetParameter(i));
+		}
+		s += ")";
+		return s;
+	}
+	else if(expr->IsA<CastExpr>())
+	{
+		CastExpr* castExpr = dynamic_cast<CastExpr*>(expr);
+		// TODO: Parse type exprs
+		return "cast(TODO, " + DumpExpr(castExpr->GetRight()) + ")";
+	}
+	else if(expr->IsA<IndexExpr>())
+	{
+		IndexExpr* indexExpr = dynamic_cast<IndexExpr*>(expr);
+		// TODO: Parse type exprs
+		return "index(" + DumpExpr(indexExpr->GetLeft()) + ", " + DumpExpr(indexExpr->GetRight()) + ")";
+	}
+	else if(expr->IsA<NullLiteralExpr>())
+	{
+		return "null";
+	}
+	else if(expr->IsA<BoolLiteralExpr>())
+	{
+		BoolLiteralExpr* boolExpr = dynamic_cast<BoolLiteralExpr*>(expr);
+		return boolExpr->GetValue() ? "true" : "false";
+	}
+	else if(expr->IsA<IntLiteralExpr>())
+	{
+		IntLiteralExpr* castedExpr = dynamic_cast<IntLiteralExpr*>(expr);
+		return castedExpr->GetValue();
+	}
+	else if(expr->IsA<FloatLiteralExpr>())
+	{
+		FloatLiteralExpr* castedExpr = dynamic_cast<FloatLiteralExpr*>(expr);
+		return castedExpr->GetValue();
+	}
+	else if(expr->IsA<CharLiteralExpr>())
+	{
+		CharLiteralExpr* castedExpr = dynamic_cast<CharLiteralExpr*>(expr);
+		return castedExpr->GetValue();
+	}
+	else if(expr->IsA<StringLiteralExpr>())
+	{
+		StringLiteralExpr* castedExpr = dynamic_cast<StringLiteralExpr*>(expr);
+		return castedExpr->GetValue();
+	}
+	else if(expr->IsA<MemberExpr>())
+	{
+		MemberExpr* memberExpr = dynamic_cast<MemberExpr*>(expr);
+		return "(" + DumpExpr(memberExpr->GetLeft()) + "." +
+					memberExpr->GetIdentifier() + ")";
+	}
+	else if(expr->IsA<NameExpr>())
+	{
+		NameExpr* nameExpr = dynamic_cast<NameExpr*>(expr);
+		return nameExpr->GetIdentifier();
+	}
+	else if(expr->IsA<TernaryExpr>())
+	{
+		TernaryExpr* ternaryExpr = dynamic_cast<TernaryExpr*>(expr);
+		return "ternary(" + DumpExpr(ternaryExpr->GetCondition()) + ", " + 
+							DumpExpr(ternaryExpr->GetTrueExpr()) + ", " + 
+							DumpExpr(ternaryExpr->GetFalseExpr()) + ")";
+	}
+	else if(expr->IsA<UnaryExpr>())
+	{
+		UnaryExpr* unaryExpr = dynamic_cast<UnaryExpr*>(expr);
+		return "(" + unaryExpr->GetPrefixOpName() + DumpExpr(unaryExpr->GetOperand()) + unaryExpr->GetPostfixOpName() + ")";
+	}
+	else
+	{
+		return "<unknown>";
+	}
 }
 
 }

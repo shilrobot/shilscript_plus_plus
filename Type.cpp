@@ -5,19 +5,19 @@ namespace SS {
 
 Type* Type::GetBasicType(BasicTypeId id)
 {
-	static BasicType voidType(BT_VOID);
-	static BasicType byteType(BT_BYTE);
-	static BasicType sbyteType(BT_SBYTE);
-	static BasicType ushortType(BT_USHORT);
-	static BasicType shortType(BT_SHORT);
-	static BasicType uintType(BT_UINT);
-	static BasicType intType(BT_INT);
-	static BasicType ulongType(BT_ULONG);
-	static BasicType longType(BT_LONG);
-	static BasicType floatType(BT_FLOAT);
-	static BasicType doubleType(BT_DOUBLE);
-	static BasicType stringType(BT_STRING);
-	static BasicType objectType(BT_OBJECT);
+	static BasicType voidType("void", BT_VOID);
+	static BasicType byteType("byte", BT_BYTE);
+	static BasicType sbyteType("sbyte", BT_SBYTE);
+	static BasicType ushortType("ushort", BT_USHORT);
+	static BasicType shortType("short", BT_SHORT);
+	static BasicType uintType("uint", BT_UINT);
+	static BasicType intType("int", BT_INT);
+	static BasicType ulongType("ulong", BT_ULONG);
+	static BasicType longType("long", BT_LONG);
+	static BasicType floatType("float", BT_FLOAT);
+	static BasicType doubleType("double", BT_DOUBLE);
+	static BasicType stringType("string", BT_STRING);
+	static BasicType objectType("object", BT_OBJECT);
 
 	switch(id)
 	{

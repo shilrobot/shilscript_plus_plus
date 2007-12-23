@@ -25,6 +25,7 @@ public:
 	SS_NAMED_NODE;
 };
 
+// TODO: Char, goddammit!
 enum BasicTypeId
 {
 	BT_VOID,
