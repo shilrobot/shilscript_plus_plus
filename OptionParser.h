@@ -33,6 +33,8 @@ public:
 	{
 	}
 
+	virtual ~OptionParser() {}
+
 	void RegisterOption(Option* opt)
 	{
 		m_optionDict[opt->longName] = opt;

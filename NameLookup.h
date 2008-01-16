@@ -11,6 +11,7 @@ class Node;
 class ILookupVisitor
 {
 public:
+	virtual ~ILookupVisitor() {}
 	virtual void OnMatch(Node* n) = 0;
 	virtual bool OnGroupEnd() = 0;
 };
@@ -20,7 +21,7 @@ class LookupVisitor : public ILookupVisitor
 public:
 
 	LookupVisitor(const String& name, Node* context, Node* errSource) :
-		m_name(name), m_context(context), m_result(0), m_resultCode(RESULT_NOT_FOUND), m_errSource(errSource) {}
+		m_name(name), m_resultCode(RESULT_NOT_FOUND),m_result(0), m_context(context),  m_errSource(errSource) {}
 
 	void OnMatch(Node* n)
 	{

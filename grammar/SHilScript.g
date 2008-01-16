@@ -658,16 +658,17 @@ type returns [TypeExpr* typ = 0]
 	
 basicType returns [TypeExpr* typ = 0]
 	: "void" { typ = new BasicTypeExpr(BT_VOID); }
-	| "byte" { typ = new BasicTypeExpr(BT_BYTE); }
-	| "sbyte" { typ = new BasicTypeExpr(BT_SBYTE); }
-	| "ushort" { typ = new BasicTypeExpr(BT_USHORT); }
-	| "short" { typ = new BasicTypeExpr(BT_SHORT); }
-	| "uint" { typ = new BasicTypeExpr(BT_UINT); }
-	| "int" { typ = new BasicTypeExpr(BT_INT); }
-	| "ulong" { typ = new BasicTypeExpr(BT_ULONG); }
-	| "long" { typ = new BasicTypeExpr(BT_LONG); }
+	| "byte" { typ = new BasicTypeExpr(BT_U1); }
+	| "sbyte" { typ = new BasicTypeExpr(BT_S1); }
+	| "ushort" { typ = new BasicTypeExpr(BT_U2); }
+	| "short" { typ = new BasicTypeExpr(BT_S2); }
+	| "uint" { typ = new BasicTypeExpr(BT_U4); }
+	| "int" { typ = new BasicTypeExpr(BT_S4); }
+	| "ulong" { typ = new BasicTypeExpr(BT_U8); }
+	| "long" { typ = new BasicTypeExpr(BT_S8); }
 	| "float" { typ = new BasicTypeExpr(BT_FLOAT); }
 	| "double" { typ = new BasicTypeExpr(BT_DOUBLE); }
+	| "char" { typ = new BasicTypeExpr(BT_CHAR); }
 	| "string" { typ = new BasicTypeExpr(BT_STRING); }
 	| "object" { typ = new BasicTypeExpr(BT_OBJECT); }
 	;

@@ -25,21 +25,21 @@ public:
 	SS_NAMED_NODE;
 };
 
-// TODO: Char, goddammit!
 enum BasicTypeId
 {
 	BT_VOID,
 	BT_BOOL,
-	BT_BYTE,
-	BT_SBYTE,
-	BT_SHORT,
-	BT_USHORT,
-	BT_INT,
-	BT_UINT,
-	BT_LONG,
-	BT_ULONG,
+	BT_U1,
+	BT_S1,
+	BT_U2,
+	BT_S2,
+	BT_U4,
+	BT_S4,
+	BT_U8,
+	BT_S8,
 	BT_FLOAT,
 	BT_DOUBLE,
+	BT_CHAR,
 	BT_STRING,
 	BT_OBJECT,
 };

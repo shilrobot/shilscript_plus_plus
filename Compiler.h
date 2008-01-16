@@ -37,6 +37,8 @@ private:
 class SS_EXPORT ICompilationListener
 {
 public:
+	virtual ~ICompilationListener() {}
+
 	virtual void OnCompilerMessage(const CompilerMessage& msg)=0;
 };
 

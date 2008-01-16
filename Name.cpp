@@ -22,7 +22,7 @@ bool IsValidName(const String& name)
 			continue;
 		else if(c == '_')
 			continue;
-		else if(c >= '0' && c <=' 9' && i != 0)
+		else if(c >= '0' && c <= '9' && i != 0)
 			continue;
 		else
 			return false;

@@ -12,5 +12,6 @@
 #include "NameExpr.h"
 #include "TernaryExpr.h"
 #include "UnaryExpr.h"
+#include "TransformExprs.h"
 
 #endif // SS_ALLEXPRS_H

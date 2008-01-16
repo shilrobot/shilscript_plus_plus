@@ -13,6 +13,7 @@ class Node;
 class Scope;
 class Statement;
 class Expr;
+class Type;
 
 // Context info used when compiling statements in a func
 struct StatementContext

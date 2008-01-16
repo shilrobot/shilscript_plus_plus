@@ -471,33 +471,35 @@ void StaticChecker::CheckStatement(Statement* stmt, const StatementContext& ctx)
 
 bool StaticChecker::IsInteger(Type* type) const
 {
-	// TODO: char
-	return (type == SS_T_BYTE ||
-			type == SS_T_SBYTE ||
-			type == SS_T_USHORT ||
-			type == SS_T_SHORT ||
-			type == SS_T_UINT ||
-			type == SS_T_INT ||
-			type == SS_T_ULONG ||
-			type == SS_T_LONG);
+	// TODO: char?
+	return (type == SS_T_U1 ||
+			type == SS_T_S1 ||
+			type == SS_T_U2 ||
+			type == SS_T_S2 ||
+			type == SS_T_U4 ||
+			type == SS_T_S4 ||
+			type == SS_T_U8 ||
+			type == SS_T_S8 ||
+			type == SS_T_CHAR);
 }
 
 bool StaticChecker::IsNumber(Type* type) const
 {
-	// TODO: char
-	return (type == SS_T_BYTE ||
-			type == SS_T_SBYTE ||
-			type == SS_T_USHORT ||
-			type == SS_T_SHORT ||
-			type == SS_T_UINT ||
-			type == SS_T_INT ||
-			type == SS_T_ULONG ||
-			type == SS_T_LONG ||
+	// TODO: char?
+	return (type == SS_T_U1 ||
+			type == SS_T_S1 ||
+			type == SS_T_U2 ||
+			type == SS_T_S2 ||
+			type == SS_T_U4 ||
+			type == SS_T_S4 ||
+			type == SS_T_U8 ||
+			type == SS_T_S8 ||
 			type == SS_T_FLOAT ||
-			type == SS_T_DOUBLE);
+			type == SS_T_DOUBLE ||
+			type == SS_T_CHAR);
 }
 
-Type* StaticChecker::WidenNumbers(Type* a, Type* b)
+Type* StaticChecker::WidenNumbers(Type* a, Type* b) const
 {
 	if(a == SS_T_DOUBLE || b == SS_T_DOUBLE)
 		return SS_T_DOUBLE;
@@ -509,6 +511,12 @@ Type* StaticChecker::WidenNumbers(Type* a, Type* b)
 
 Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 {
+	Function* func = ctx->stmtCtx->func;
+	Scope* scope = ctx->stmtCtx->scope;
+
+	//---------------------------------------------------------------
+	// BINARY EXPRESSION
+	//---------------------------------------------------------------
 	if(expr->IsA<BinaryExpr>())
 	{
 		BinaryExpr* binExpr = dynamic_cast<BinaryExpr*>(expr);
@@ -549,16 +557,184 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 					return new ErrorExpr();
 				}
 
-				Type* widerType = WidenNumbers(leftType, rightType);
+				// TODO
+				if(leftType != rightType)
+				{
+					ReportError(expr, "Implicit casting for operators not implemented yet");
+					return new ErrorExpr();
+				}
 
-
-
+				expr->SetResultType(leftType);
+				return expr;
 			}
-		// TODO: The rest
+		case BINOP_MOD:
+		case BINOP_BIT_AND:
+		case BINOP_BIT_OR:
+		case BINOP_BIT_XOR:
+		case BINOP_SHL:
+		case BINOP_SHR:
+			{
+				if(!IsInteger(leftType) || !IsInteger(rightType))
+				{
+					// TODO: Better type reporting crap
+					ReportError(expr, "Cannot apply operator %s to operands of type '%s' and '%s'",
+									binExpr->GetOpName().c_str(),
+									leftType->GetDesc().c_str(),
+									rightType->GetDesc().c_str());
+					return new ErrorExpr();
+				}
+				
+				// TODO
+				if(leftType != rightType)
+				{
+					ReportError(expr, "Implicit casting for operators not implemented yet");
+					return new ErrorExpr();
+				}
+
+				expr->SetResultType(leftType);
+				return expr;
+			}
+
+		case BINOP_LOG_AND:
+		case BINOP_LOG_OR:
+			{
+				
+				// TODO
+				if(leftType != SS_T_BOOL ||
+						rightType != SS_T_BOOL)
+				{
+					ReportError(expr, "Implicit casting for operators not implemented yet");
+					return new ErrorExpr();
+				}
+
+				expr->SetResultType(SS_T_BOOL);
+				return expr;
+			}
+
+		case BINOP_LT:
+		case BINOP_LE:
+		case BINOP_GT:
+		case BINOP_GE:
+			{
+				if(!IsNumber(leftType) || !IsNumber(rightType))
+				{
+					// TODO: Better type reporting crap
+					ReportError(expr, "Cannot apply operator %s to operands of type '%s' and '%s'",
+									binExpr->GetOpName().c_str(),
+									leftType->GetDesc().c_str(),
+									rightType->GetDesc().c_str());
+					return new ErrorExpr();
+				}
+
+				// TODO
+				if(leftType != rightType)
+				{
+					ReportError(expr, "Implicit casting for operators not implemented yet");
+					return new ErrorExpr();
+				}
+
+				expr->SetResultType(SS_T_BOOL);
+				return expr;
+			}
+
+		case BINOP_EQ:
+		case BINOP_NE:
+			{
+				// TODO
+				if(leftType != rightType)
+				{
+					ReportError(expr, "Implicit casting for operators not implemented yet");
+					return new ErrorExpr();
+				}
+
+				expr->SetResultType(SS_T_BOOL);
+				return expr;
+			}
+		default:
+			SS_UNREACHABLE;
 		}
 	}
+	//---------------------------------------------------------------
+	// UNARY EXPRESSION
+	//---------------------------------------------------------------
+	else if(expr->IsA<UnaryExpr>())
+	{
+		UnaryExpr* unaryExpr = dynamic_cast<UnaryExpr*>(expr);
+
+		Type* operandType = unaryExpr->GetOperand()->GetResultType();
+		SSAssert(operandType);
+
+		switch(unaryExpr->GetOp())
+		{
+		case UNOP_PRE_INC:
+		case UNOP_PRE_DEC:
+		case UNOP_POST_INC:
+		case UNOP_POST_DEC:
+		case UNOP_NEGATIVE:
+			{
+				// TODO: Check if it's an lvalue/rvalue!!!
+				if(!IsNumber(operandType))
+				{
+					ReportError(expr, "Cannot apply operator %s to operand of type %s",
+							unaryExpr->GetOpName().c_str(),
+							operandType->GetDesc().c_str());
+					return new ErrorExpr();
+				}
+
+				expr->SetResultType(operandType);
+				return expr;
+			}
+		case UNOP_LOG_NOT:
+			{
+				// TODO
+				if(operandType != SS_T_BOOL)
+				{
+					ReportError(expr, "Cannot apply operator ! to operand of type %s",
+							operandType->GetDesc().c_str());
+					return new ErrorExpr();
+				}
+
+				expr->SetResultType(SS_T_BOOL);
+				return expr;
+			}
+		case UNOP_COMPLEMENT:
+			{
+				if(!IsInteger(operandType))
+				{
+					ReportError(expr, "Cannot apply operator %s to operand of type %s",
+							unaryExpr->GetOpName().c_str(),
+							operandType->GetDesc().c_str());
+					return new ErrorExpr();
+				}
+
+				expr->SetResultType(operandType);
+				return expr;
+			}
+		case UNOP_POSITIVE:
+			{
+				// Positive is a do-nothing
+				// TODO: Should complain on voids and non-numbers?
+				expr->SetResultType(operandType);
+				return expr;
+			}
+		default:
+			SS_UNREACHABLE;
+		}
+
+		return expr;
+	}
+	//---------------------------------------------------------------
+	// NAME EXPRESSION
+	//---------------------------------------------------------------
+	else if(expr->IsA<NameExpr>())
+	{
+		
+	}
 	else
-		return 0;
+	{
+		ReportError(expr, "Temporarily unsupported expr type");
+		return new ErrorExpr();
+	}
 }
 
 // Debug dump of an expr to check that it's processing correctly
@@ -663,3 +839,4 @@ String StaticChecker::DumpExpr(Expr* expr) const
 }
 
 }
+

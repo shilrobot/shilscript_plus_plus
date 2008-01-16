@@ -45,7 +45,7 @@ String CompilerMessage::Format() const
 	return result + m_text;
 }
 
-Compiler::Compiler() : m_pkg(0), m_listener(0), m_compiled(false), m_errors(0), m_warnings(0), m_succeeded(false)
+Compiler::Compiler() :  m_compiled(false), m_errors(0), m_warnings(0), m_succeeded(false), m_pkg(0), m_listener(0)
 {
 	m_pkg = new Package();
 }
@@ -86,6 +86,9 @@ void Compiler::Parse(const String& filename, std::istream& scriptStream)
 Package* Compiler::Compile(const String& pkgName)
 {
 	SSAssert(!m_compiled);
+
+	Package* ret = 0;
+
 	m_compiled = true;
 
 	g_compiler = this;
@@ -101,7 +104,7 @@ Package* Compiler::Compile(const String& pkgName)
 		goto Failed;
 	}
 
-	Package* ret = m_pkg;
+	ret = m_pkg;
 	m_pkg = 0;
 	m_succeeded = true;
 	g_compiler = 0;

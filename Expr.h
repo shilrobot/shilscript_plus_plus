@@ -22,12 +22,6 @@ private:
 	Type* m_resultType;
 };
 
-class SS_EXPORT ErrorExpr : public Expr
-{
-public:
-	SS_CLASS(ErrorExpr, "ErrorExpr", Expr);
-}
-
 }
 
 #endif // SS_EXPR_H

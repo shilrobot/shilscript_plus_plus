@@ -15,13 +15,13 @@ public:
 
 	// TODO: Since we're not printing out options based on the help params, remove them!
 	SSC() : OptionParser(SSC_NAME),
+			m_hasPkgName(false),
+			m_hasOutName(false),
 			m_optHelp('?', "help", ARG_NONE, "Shows program usage information"),
 			m_optVersion('v', "version", ARG_NONE, "Shows program version information"),
 			m_optLink('l', "link", ARG_REQUIRED, "Links to another SS package", "FILE"),
 			m_optOut('o', "out", ARG_REQUIRED, "Sets the output package filename", "FILE"),
-			m_optPkgName('p', "pkgname", ARG_REQUIRED, "Sets the name of this package", "NAME"),
-			m_hasPkgName(false),
-			m_hasOutName(false)
+			m_optPkgName('p', "pkgname", ARG_REQUIRED, "Sets the name of this package", "NAME")
 	{
 		RegisterOption(&m_optHelp);
 		RegisterOption(&m_optVersion);
