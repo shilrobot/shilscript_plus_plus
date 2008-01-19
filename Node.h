@@ -67,6 +67,8 @@ public:
 		return s;
 	}
 	
+	// e.g. "package", "class", etc. 
+	// Sort of confusing name
 	virtual String GetTypeName() const { return "(unknown type)"; }
 
 	virtual String GetDesc() const { return GetTypeName() + " '" + GetFullName() +"'"; }

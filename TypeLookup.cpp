@@ -2,19 +2,28 @@
 #include "Type.h"
 #include "TypeExpr.h"
 #include "NameLookup.h"
+#include "Class.h"
 
 namespace SS {
 
 Type* TypeLookup::LookupType(TypeExpr* typeExpr, Node* context)
 {
+	// Handle basic type expressions
+	if(typeExpr->IsA<BasicTypeExpr>())
+	{
+		BasicTypeExpr* btExpr = dynamic_cast<BasicTypeExpr*>(typeExpr);
+		return Type::GetBasicType(btExpr->GetTypeId());
+	}
+
 	Node* n = LookupTypeImpl(typeExpr, context);
 
 	if(n == 0)
 		// Err. message should already be reported
 		return 0;
-	else if(n->IsA<Type>())
+	else if(n->IsA<Class>())
 	{
-		return dynamic_cast<Type*>(n);
+		Class* cls = dynamic_cast<Class*>(n);
+		return cls->GetType();
 	}
 	else
 	{
@@ -29,11 +38,6 @@ Node* TypeLookup::LookupTypeImpl(TypeExpr* typeExpr, Node* context)
 	{
 		NameTypeExpr* ntExpr = dynamic_cast<NameTypeExpr*>(typeExpr);
 		return NameLookup::LookupName(ntExpr->GetName(), context, ntExpr);
-	}
-	else if(typeExpr->IsA<BasicTypeExpr>())
-	{
-		BasicTypeExpr* btExpr = dynamic_cast<BasicTypeExpr*>(typeExpr);
-		return Type::GetBasicType(btExpr->GetTypeId());
 	}
 	else if(typeExpr->IsA<DottedTypeExpr>())
 	{

@@ -10,11 +10,12 @@ class Function;
 class Variable;
 class TypeExpr;
 class Package;
+class ClassType;
 
-class SS_EXPORT Class : public Type
+class SS_EXPORT Class : public Node
 {
 public:
-	SS_CLASS(Class, "Class", Type)
+	SS_CLASS(Class, "Class", Node)
 
 	Class();
 	virtual ~Class();
@@ -32,6 +33,8 @@ public:
 	SS_INDEX(Variable*, Variable, m_vars);
 	SS_INDEX(Function*, Function, m_funcs);
 
+	SS_GETSET(Type*, Type, m_type);
+
 	SS_NODE_TYPE_NAME("class");
 
 private:
@@ -47,6 +50,7 @@ private:
 
 	VariableVector	m_vars;
 	FunctionVector	m_funcs;
+	Type*			m_type;
 
 	// TODO: Other flags: final, native, ...
 };

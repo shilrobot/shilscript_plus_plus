@@ -22,13 +22,18 @@ namespace SS {
 #define SS_T_STRING (SS::Type::GetBasicType(BT_STRING))
 #define SS_T_OBJECT (SS::Type::GetBasicType(BT_OBJECT))
 
-class SS_EXPORT Type : public Node
-{
+class SS_EXPORT Type : public Base
+{ 
 public:
-	SS_CLASS(Type, "Type", Node)
+	SS_CLASS(Type, "Type", Base)
+
+	virtual String GetName() const=0;
+
+	/*
 	SS_NAMED_NODE
 	SS_CONTAINER_NODE
 	SS_NODE_TYPE_NAME("type");
+	*/
 
 	static Type* GetBasicType(BasicTypeId id);
 };
@@ -45,7 +50,7 @@ public:
 	SS_GETSET(BasicTypeId, TypeId, m_typeid);
 	// TODO: Implement desc
 
-	String GetDesc() const { return m_typeName; }
+	String GetName() const { return m_typeName; }
 
 private:
 	BasicTypeId m_typeid;

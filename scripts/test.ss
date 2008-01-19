@@ -7,6 +7,7 @@ class Foo
 {
 	int foobar(int y)
 	{
-		TernaryExpr = (TernaryExpr)(expr);
+		x = (SomeType)(y);
+		foo(this);
 	}
 }

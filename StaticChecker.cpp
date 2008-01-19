@@ -511,8 +511,8 @@ Type* StaticChecker::WidenNumbers(Type* a, Type* b) const
 
 Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 {
-	Function* func = ctx->stmtCtx->func;
-	Scope* scope = ctx->stmtCtx->scope;
+	Function* func = ctx.stmtCtx->func;
+	Scope* scope = ctx.stmtCtx->scope;
 
 	//---------------------------------------------------------------
 	// BINARY EXPRESSION
@@ -552,8 +552,8 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 					// TODO: Better type reporting crap
 					ReportError(expr, "Cannot apply operator %s to operands of type '%s' and '%s'",
 									binExpr->GetOpName().c_str(),
-									leftType->GetDesc().c_str(),
-									rightType->GetDesc().c_str());
+									leftType->GetName().c_str(),
+									rightType->GetName().c_str());
 					return new ErrorExpr();
 				}
 
@@ -579,8 +579,8 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 					// TODO: Better type reporting crap
 					ReportError(expr, "Cannot apply operator %s to operands of type '%s' and '%s'",
 									binExpr->GetOpName().c_str(),
-									leftType->GetDesc().c_str(),
-									rightType->GetDesc().c_str());
+									leftType->GetName().c_str(),
+									rightType->GetName().c_str());
 					return new ErrorExpr();
 				}
 				
@@ -621,8 +621,8 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 					// TODO: Better type reporting crap
 					ReportError(expr, "Cannot apply operator %s to operands of type '%s' and '%s'",
 									binExpr->GetOpName().c_str(),
-									leftType->GetDesc().c_str(),
-									rightType->GetDesc().c_str());
+									leftType->GetName().c_str(),
+									rightType->GetName().c_str());
 					return new ErrorExpr();
 				}
 
@@ -677,7 +677,7 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 				{
 					ReportError(expr, "Cannot apply operator %s to operand of type %s",
 							unaryExpr->GetOpName().c_str(),
-							operandType->GetDesc().c_str());
+							operandType->GetName().c_str());
 					return new ErrorExpr();
 				}
 
@@ -690,7 +690,7 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 				if(operandType != SS_T_BOOL)
 				{
 					ReportError(expr, "Cannot apply operator ! to operand of type %s",
-							operandType->GetDesc().c_str());
+							operandType->GetName().c_str());
 					return new ErrorExpr();
 				}
 
@@ -703,7 +703,7 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 				{
 					ReportError(expr, "Cannot apply operator %s to operand of type %s",
 							unaryExpr->GetOpName().c_str(),
-							operandType->GetDesc().c_str());
+							operandType->GetName().c_str());
 					return new ErrorExpr();
 				}
 
@@ -738,6 +738,7 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 }
 
 // Debug dump of an expr to check that it's processing correctly
+// TODO: Put this into Expr::Dump()!
 String StaticChecker::DumpExpr(Expr* expr) const
 {
 	if(expr == 0)
@@ -771,13 +772,11 @@ String StaticChecker::DumpExpr(Expr* expr) const
 	else if(expr->IsA<CastExpr>())
 	{
 		CastExpr* castExpr = dynamic_cast<CastExpr*>(expr);
-		// TODO: Parse type exprs
-		return "cast(TODO, " + DumpExpr(castExpr->GetRight()) + ")";
+		return "cast(" + castExpr->GetTypeExpr()->Dump() + ", " + DumpExpr(castExpr->GetRight()) + ")";
 	}
 	else if(expr->IsA<IndexExpr>())
 	{
 		IndexExpr* indexExpr = dynamic_cast<IndexExpr*>(expr);
-		// TODO: Parse type exprs
 		return "index(" + DumpExpr(indexExpr->GetLeft()) + ", " + DumpExpr(indexExpr->GetRight()) + ")";
 	}
 	else if(expr->IsA<NullLiteralExpr>())
@@ -834,7 +833,8 @@ String StaticChecker::DumpExpr(Expr* expr) const
 	}
 	else
 	{
-		return "<unknown>";
+		SS_UNREACHABLE;
+		return "";
 	}
 }
 
