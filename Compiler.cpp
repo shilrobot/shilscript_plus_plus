@@ -68,10 +68,14 @@ void Compiler::Parse(const String& filename, std::istream& scriptStream)
 
 	g_compiler = this;
 
+	FileInfo* fileInfo = m_pkg->AddFile(filename);
+	SSAssert(fileInfo != 0);
+
 	try
 	{
 		SSLexer lexer(scriptStream);
 		SSParser parser(lexer);
+		parser.m_fileInfo = fileInfo;
 
 		parser.translationUnit(m_pkg);
 	}

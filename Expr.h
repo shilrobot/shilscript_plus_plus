@@ -16,10 +16,10 @@ public:
 	{
 	}
 
-	SS_GETSET(Type*, ResultType, m_resultType);
-	
+	SS_GETSET(const Type*, ResultType, m_resultType);
+
 private:
-	Type* m_resultType;
+	const Type* m_resultType;
 };
 
 }

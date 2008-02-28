@@ -359,14 +359,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\Type.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\Type.h"
-				>
-			</File>
-			<File
 				RelativePath=".\TypeExpr.h"
 				>
 			</File>
@@ -426,6 +418,10 @@
 					>
 				</File>
 				<File
+					RelativePath=".\TransformExprs.h"
+					>
+				</File>
+				<File
 					RelativePath=".\UnaryExpr.h"
 					>
 				</File>
@@ -438,6 +434,26 @@
 					>
 				</File>
 			</Filter>
+		</Filter>
+		<Filter
+			Name="Types"
+			>
+			<File
+				RelativePath=".\ClassType.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\ClassType.h"
+				>
+			</File>
+			<File
+				RelativePath=".\Type.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Type.h"
+				>
+			</File>
 		</Filter>
 		<File
 			RelativePath=".\AccessDomain.cpp"
@@ -492,6 +508,14 @@
 			>
 		</File>
 		<File
+			RelativePath=".\OverloadResolve.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\OverloadResolve.h"
+			>
+		</File>
+		<File
 			RelativePath=".\Prereqs.h"
 			>
 		</File>
@@ -513,6 +537,14 @@
 		</File>
 		<File
 			RelativePath=".\StaticChecker.h"
+			>
+		</File>
+		<File
+			RelativePath=".\TypeConversion.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\TypeConversion.h"
 			>
 		</File>
 		<File

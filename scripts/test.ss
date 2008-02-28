@@ -7,7 +7,6 @@ class Foo
 {
 	int foobar(int y)
 	{
-		x = (SomeType)(y);
-		foo(this);
+		a = b;
 	}
 }

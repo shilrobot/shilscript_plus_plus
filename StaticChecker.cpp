@@ -6,6 +6,7 @@
 #include "TypeLookup.h"
 #include "Statement.h"
 #include "AllExprs.h"
+#include "TypeConversion.h"
 
 namespace SS {
 
@@ -469,45 +470,229 @@ void StaticChecker::CheckStatement(Statement* stmt, const StatementContext& ctx)
 	}
 }
 
-bool StaticChecker::IsInteger(Type* type) const
+#define OVERLOAD_BEGIN(op_,name_) \
+	case op_: { \
+		static bool firstTime = true; \
+		static OverloadVector candidates; \
+		const char* name = name_; \
+		if(firstTime) { \
+		firstTime = false; 
+
+#define OVERLOAD_ADD(lhs,rhs,retval) \
+	{ \
+		static OverloadCandidate cand; \
+		cand.userData = static_cast<Type*>(retval); \
+		cand.name = name; \
+		cand.types.push_back(lhs); \
+		cand.types.push_back(rhs); \
+		candidates.push_back(&cand); }
+
+#define OVERLOAD_ADD_UN(opType,retval) \
+	{ \
+		static OverloadCandidate cand; \
+		cand.userData = static_cast<Type*>(retval); \
+		cand.name = name; \
+		cand.types.push_back(opType); \
+		candidates.push_back(&cand); }
+
+#define OVERLOAD_END  } return candidates; }
+
+
+const OverloadVector& StaticChecker::GetBinaryOverloads(BinaryOp op) const
 {
-	// TODO: char?
-	return (type == SS_T_U1 ||
-			type == SS_T_S1 ||
-			type == SS_T_U2 ||
-			type == SS_T_S2 ||
-			type == SS_T_U4 ||
-			type == SS_T_S4 ||
-			type == SS_T_U8 ||
-			type == SS_T_S8 ||
-			type == SS_T_CHAR);
+	switch(op)
+	{	
+
+	// TODO: Return types
+
+	OVERLOAD_BEGIN(BINOP_ADD, "+")
+		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
+		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
+		OVERLOAD_ADD(SS_T_FLOAT, SS_T_FLOAT, SS_T_FLOAT)
+		OVERLOAD_ADD(SS_T_DOUBLE, SS_T_DOUBLE, SS_T_DOUBLE)
+		OVERLOAD_ADD(SS_T_STRING, SS_T_STRING, SS_T_STRING)
+	OVERLOAD_END
+
+	OVERLOAD_BEGIN(BINOP_SUB, "-")
+		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
+		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
+		OVERLOAD_ADD(SS_T_FLOAT, SS_T_FLOAT, SS_T_FLOAT)
+		OVERLOAD_ADD(SS_T_DOUBLE, SS_T_DOUBLE, SS_T_DOUBLE)
+	OVERLOAD_END
+
+	OVERLOAD_BEGIN(BINOP_MUL, "*")
+		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
+		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
+		OVERLOAD_ADD(SS_T_FLOAT, SS_T_FLOAT, SS_T_FLOAT)
+		OVERLOAD_ADD(SS_T_DOUBLE, SS_T_DOUBLE, SS_T_DOUBLE)
+	OVERLOAD_END
+
+	OVERLOAD_BEGIN(BINOP_DIV, "/")
+		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
+		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
+		OVERLOAD_ADD(SS_T_FLOAT, SS_T_FLOAT, SS_T_FLOAT)
+		OVERLOAD_ADD(SS_T_DOUBLE, SS_T_DOUBLE, SS_T_DOUBLE)
+	OVERLOAD_END
+
+	OVERLOAD_BEGIN(BINOP_MOD, "%")
+		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
+		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
+
+		// Works on floats too, a la C#
+		OVERLOAD_ADD(SS_T_FLOAT, SS_T_FLOAT, SS_T_FLOAT)
+		OVERLOAD_ADD(SS_T_DOUBLE, SS_T_DOUBLE, SS_T_DOUBLE)
+	OVERLOAD_END
+
+	OVERLOAD_BEGIN(BINOP_POW, "**")
+		// TODO: Should it work on ints?
+		OVERLOAD_ADD(SS_T_FLOAT, SS_T_FLOAT, SS_T_FLOAT)
+		OVERLOAD_ADD(SS_T_DOUBLE, SS_T_DOUBLE, SS_T_DOUBLE)
+	OVERLOAD_END
+
+	OVERLOAD_BEGIN(BINOP_BIT_AND, "&")
+		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
+		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
+	OVERLOAD_END
+
+	OVERLOAD_BEGIN(BINOP_BIT_OR, "|")
+		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
+		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
+	OVERLOAD_END
+
+	OVERLOAD_BEGIN(BINOP_BIT_XOR, "^")
+		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
+		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
+	OVERLOAD_END
+
+	OVERLOAD_BEGIN(BINOP_LOG_AND, "&&")
+		OVERLOAD_ADD(SS_T_BOOL, SS_T_BOOL, SS_T_BOOL)
+	OVERLOAD_END
+
+	OVERLOAD_BEGIN(BINOP_LOG_OR, "||")
+		OVERLOAD_ADD(SS_T_BOOL, SS_T_BOOL, SS_T_BOOL)
+	OVERLOAD_END
+
+	OVERLOAD_BEGIN(BINOP_SHL, "<<")
+		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_U4, SS_T_S4, SS_T_U4)
+		OVERLOAD_ADD(SS_T_S8, SS_T_S4, SS_T_S8)
+		OVERLOAD_ADD(SS_T_U8, SS_T_S4, SS_T_U8)
+	OVERLOAD_END
+
+	OVERLOAD_BEGIN(BINOP_SHR, ">>")
+		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_U4, SS_T_S4, SS_T_U4)
+		OVERLOAD_ADD(SS_T_S8, SS_T_S4, SS_T_S8)
+		OVERLOAD_ADD(SS_T_U8, SS_T_S4, SS_T_U8)
+	OVERLOAD_END
+
+	OVERLOAD_BEGIN(BINOP_LT, "<")
+		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
+		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
+		OVERLOAD_ADD(SS_T_FLOAT, SS_T_FLOAT, SS_T_FLOAT)
+		OVERLOAD_ADD(SS_T_DOUBLE, SS_T_DOUBLE, SS_T_DOUBLE)
+	OVERLOAD_END
+
+	OVERLOAD_BEGIN(BINOP_LE, "<=")
+		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
+		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
+		OVERLOAD_ADD(SS_T_FLOAT, SS_T_FLOAT, SS_T_FLOAT)
+		OVERLOAD_ADD(SS_T_DOUBLE, SS_T_DOUBLE, SS_T_DOUBLE)
+	OVERLOAD_END
+	
+	OVERLOAD_BEGIN(BINOP_GT, ">")
+		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
+		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
+		OVERLOAD_ADD(SS_T_FLOAT, SS_T_FLOAT, SS_T_FLOAT)
+		OVERLOAD_ADD(SS_T_DOUBLE, SS_T_DOUBLE, SS_T_DOUBLE)
+	OVERLOAD_END
+
+	OVERLOAD_BEGIN(BINOP_GE, ">=")
+		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
+		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
+		OVERLOAD_ADD(SS_T_FLOAT, SS_T_FLOAT, SS_T_FLOAT)
+		OVERLOAD_ADD(SS_T_DOUBLE, SS_T_DOUBLE, SS_T_DOUBLE)
+	OVERLOAD_END
+
+	default:
+		{
+			SSAssert(0 && "Unknown/unimplemented binary op");
+			static OverloadVector dummy;
+			return dummy; // Quiet, compiler
+		}
+	}
 }
 
-bool StaticChecker::IsNumber(Type* type) const
+
+const OverloadVector& StaticChecker::GetUnaryOverloads(UnaryOp op) const
 {
-	// TODO: char?
-	return (type == SS_T_U1 ||
-			type == SS_T_S1 ||
-			type == SS_T_U2 ||
-			type == SS_T_S2 ||
-			type == SS_T_U4 ||
-			type == SS_T_S4 ||
-			type == SS_T_U8 ||
-			type == SS_T_S8 ||
-			type == SS_T_FLOAT ||
-			type == SS_T_DOUBLE ||
-			type == SS_T_CHAR);
+	switch(op)
+	{	
+
+	// TODO: Return types
+
+	OVERLOAD_BEGIN(UNOP_LOG_NOT, "!")
+		OVERLOAD_ADD_UN(SS_T_BOOL, SS_T_BOOL)
+	OVERLOAD_END
+
+	OVERLOAD_BEGIN(UNOP_COMPLEMENT, "~")
+		OVERLOAD_ADD_UN(SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD_UN(SS_T_U4, SS_T_U4)
+		OVERLOAD_ADD_UN(SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD_UN(SS_T_U8, SS_T_U8)
+	OVERLOAD_END
+
+	OVERLOAD_BEGIN(UNOP_NEGATIVE, "-")
+		OVERLOAD_ADD_UN(SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD_UN(SS_T_U4, SS_T_U4)
+		OVERLOAD_ADD_UN(SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD_UN(SS_T_U8, SS_T_U8)
+		OVERLOAD_ADD_UN(SS_T_FLOAT, SS_T_FLOAT)
+		OVERLOAD_ADD_UN(SS_T_DOUBLE, SS_T_DOUBLE)
+	OVERLOAD_END
+
+	OVERLOAD_BEGIN(UNOP_POSITIVE, "+")
+		OVERLOAD_ADD_UN(SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD_UN(SS_T_U4, SS_T_U4)
+		OVERLOAD_ADD_UN(SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD_UN(SS_T_U8, SS_T_U8)
+		OVERLOAD_ADD_UN(SS_T_FLOAT, SS_T_FLOAT)
+		OVERLOAD_ADD_UN(SS_T_DOUBLE, SS_T_DOUBLE)
+	OVERLOAD_END
+
+	default:
+		{
+			SSAssert(0 && "Unknown/unimplemented unary op");
+			static OverloadVector dummy;
+			return dummy; // quiet, compiler
+		}
+	}
 }
 
-Type* StaticChecker::WidenNumbers(Type* a, Type* b) const
-{
-	if(a == SS_T_DOUBLE || b == SS_T_DOUBLE)
-		return SS_T_DOUBLE;
-	else if(a == SS_T_FLOAT || b == SS_T_FLOAT)
-		return SS_T_FLOAT;
-	// TODO: THE REST!
-	SSAssertM(0, "Not Implemented");	
-}
 
 Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 {
@@ -515,9 +700,38 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 	Scope* scope = ctx.stmtCtx->scope;
 
 	//---------------------------------------------------------------
+	// LITERAL EXPRESSIONS
+	//---------------------------------------------------------------
+	if(expr->IsA<NullLiteralExpr>())
+	{
+		expr->SetResultType(SS_T_NULLTYPE);
+	}
+	else if(expr->IsA<BoolLiteralExpr>())
+	{
+		expr->SetResultType(SS_T_BOOL);
+	}
+	else if(expr->IsA<IntLiteralExpr>())
+	{
+		// TODO: Check range, reparse, etc.?
+		expr->SetResultType(SS_T_S4);
+	}
+	else if(expr->IsA<FloatLiteralExpr>())
+	{
+		// TODO: Check range, reparse, etc.?
+		expr->SetResultType(SS_T_FLOAT);
+	}
+	else if(expr->IsA<CharLiteralExpr>())
+	{
+		expr->SetResultType(SS_T_CHAR);
+	}
+	else if(expr->IsA<StringLiteralExpr>())
+	{
+		expr->SetResultType(SS_T_STRING);
+	}
+	//---------------------------------------------------------------
 	// BINARY EXPRESSION
 	//---------------------------------------------------------------
-	if(expr->IsA<BinaryExpr>())
+	else if(expr->IsA<BinaryExpr>())
 	{
 		BinaryExpr* binExpr = dynamic_cast<BinaryExpr*>(expr);
 
@@ -534,205 +748,145 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 			return new ErrorExpr();
 		}
 
-		Type* leftType = left->GetResultType();
-		Type* rightType = right->GetResultType();
+		const Type* leftType = left->GetResultType();
+		const Type* rightType = right->GetResultType();
 		SSAssert(leftType);
 		SSAssert(rightType);
 
-		switch(binExpr->GetOp())
+		if(binExpr->GetOp() == BINOP_EQ ||
+			binExpr->GetOp() == BINOP_NE)
 		{
-		case BINOP_ADD:
-		case BINOP_SUB:
-		case BINOP_MUL:
-		case BINOP_DIV:
-		case BINOP_POW:
+			ReportError(expr, "== and != are temporarily unsupported");
+			return new ErrorExpr();
+		}
+		else
+		{
+			const OverloadVector& candidates = GetBinaryOverloads(binExpr->GetOp());
+			TypeVector types;
+			types.push_back(leftType);
+			types.push_back(rightType);
+			OverloadVector resultOverloads;
+			OverloadResolveResult resultCode = ResolveOverloads(types, candidates, resultOverloads);
+
+			if(resultCode == OR_NO_MATCH)
 			{
-				if(!IsNumber(leftType) || !IsNumber(rightType))
+				ReportError(expr, 
+							"Operator %s cannot accept operators of types %s, %s",
+							binExpr->GetOpName().c_str(),
+							leftType->GetName().c_str(),
+							rightType->GetName().c_str());
+				return new ErrorExpr();
+			}
+			else if(resultCode == OR_AMBIGUOUS)
+			{
+				// TODO: Show possibilities
+				ReportError(expr, 
+							"Operator %s cannot accept operators of types %s, %s due to ambiguity",
+							binExpr->GetOpName().c_str(),
+							leftType->GetName().c_str(),
+							rightType->GetName().c_str());
+				return new ErrorExpr();
+			}
+			else //if(resultCode == OR_SINGLE_MATCH)
+			{
+				SSAssert(resultOverloads.size() == 1);
+				SSAssert(resultOverloads[0] != 0);
+
+				const OverloadCandidate* const match = resultOverloads[0];
+
+				// Stitch up params with casts if necessary
+				if(match->types[0] != leftType)
 				{
-					// TODO: Better type reporting crap
-					ReportError(expr, "Cannot apply operator %s to operands of type '%s' and '%s'",
-									binExpr->GetOpName().c_str(),
-									leftType->GetName().c_str(),
-									rightType->GetName().c_str());
-					return new ErrorExpr();
+					CastExpr* cast = new CastExpr(match->types[0], left);
+					binExpr->SetLeft(cast);
 				}
 
-				// TODO
-				if(leftType != rightType)
+				if(match->types[1] != rightType)
 				{
-					ReportError(expr, "Implicit casting for operators not implemented yet");
-					return new ErrorExpr();
+					CastExpr* cast = new CastExpr(match->types[1], right);
+					binExpr->SetRight(cast);
 				}
 
-				expr->SetResultType(leftType);
+				Type* returnType = reinterpret_cast<Type*>(match->userData);
+				expr->SetResultType(returnType);
 				return expr;
 			}
-		case BINOP_MOD:
-		case BINOP_BIT_AND:
-		case BINOP_BIT_OR:
-		case BINOP_BIT_XOR:
-		case BINOP_SHL:
-		case BINOP_SHR:
-			{
-				if(!IsInteger(leftType) || !IsInteger(rightType))
-				{
-					// TODO: Better type reporting crap
-					ReportError(expr, "Cannot apply operator %s to operands of type '%s' and '%s'",
-									binExpr->GetOpName().c_str(),
-									leftType->GetName().c_str(),
-									rightType->GetName().c_str());
-					return new ErrorExpr();
-				}
-				
-				// TODO
-				if(leftType != rightType)
-				{
-					ReportError(expr, "Implicit casting for operators not implemented yet");
-					return new ErrorExpr();
-				}
-
-				expr->SetResultType(leftType);
-				return expr;
-			}
-
-		case BINOP_LOG_AND:
-		case BINOP_LOG_OR:
-			{
-				
-				// TODO
-				if(leftType != SS_T_BOOL ||
-						rightType != SS_T_BOOL)
-				{
-					ReportError(expr, "Implicit casting for operators not implemented yet");
-					return new ErrorExpr();
-				}
-
-				expr->SetResultType(SS_T_BOOL);
-				return expr;
-			}
-
-		case BINOP_LT:
-		case BINOP_LE:
-		case BINOP_GT:
-		case BINOP_GE:
-			{
-				if(!IsNumber(leftType) || !IsNumber(rightType))
-				{
-					// TODO: Better type reporting crap
-					ReportError(expr, "Cannot apply operator %s to operands of type '%s' and '%s'",
-									binExpr->GetOpName().c_str(),
-									leftType->GetName().c_str(),
-									rightType->GetName().c_str());
-					return new ErrorExpr();
-				}
-
-				// TODO
-				if(leftType != rightType)
-				{
-					ReportError(expr, "Implicit casting for operators not implemented yet");
-					return new ErrorExpr();
-				}
-
-				expr->SetResultType(SS_T_BOOL);
-				return expr;
-			}
-
-		case BINOP_EQ:
-		case BINOP_NE:
-			{
-				// TODO
-				if(leftType != rightType)
-				{
-					ReportError(expr, "Implicit casting for operators not implemented yet");
-					return new ErrorExpr();
-				}
-
-				expr->SetResultType(SS_T_BOOL);
-				return expr;
-			}
-		default:
-			SS_UNREACHABLE;
 		}
 	}
 	//---------------------------------------------------------------
-	// UNARY EXPRESSION
+	// UNARY EXPRESSION EXPRESSION
 	//---------------------------------------------------------------
 	else if(expr->IsA<UnaryExpr>())
 	{
-		UnaryExpr* unaryExpr = dynamic_cast<UnaryExpr*>(expr);
+		UnaryExpr* unExpr = dynamic_cast<UnaryExpr*>(expr);
 
-		Type* operandType = unaryExpr->GetOperand()->GetResultType();
-		SSAssert(operandType);
+		Expr* operand = CheckAndTransformExpr(unExpr->GetOperand(), ctx);
+		SSAssert(operand);
 
-		switch(unaryExpr->GetOp())
+		if(operand->IsA<ErrorExpr>())
 		{
-		case UNOP_PRE_INC:
-		case UNOP_PRE_DEC:
-		case UNOP_POST_INC:
-		case UNOP_POST_DEC:
-		case UNOP_NEGATIVE:
-			{
-				// TODO: Check if it's an lvalue/rvalue!!!
-				if(!IsNumber(operandType))
-				{
-					ReportError(expr, "Cannot apply operator %s to operand of type %s",
-							unaryExpr->GetOpName().c_str(),
-							operandType->GetName().c_str());
-					return new ErrorExpr();
-				}
-
-				expr->SetResultType(operandType);
-				return expr;
-			}
-		case UNOP_LOG_NOT:
-			{
-				// TODO
-				if(operandType != SS_T_BOOL)
-				{
-					ReportError(expr, "Cannot apply operator ! to operand of type %s",
-							operandType->GetName().c_str());
-					return new ErrorExpr();
-				}
-
-				expr->SetResultType(SS_T_BOOL);
-				return expr;
-			}
-		case UNOP_COMPLEMENT:
-			{
-				if(!IsInteger(operandType))
-				{
-					ReportError(expr, "Cannot apply operator %s to operand of type %s",
-							unaryExpr->GetOpName().c_str(),
-							operandType->GetName().c_str());
-					return new ErrorExpr();
-				}
-
-				expr->SetResultType(operandType);
-				return expr;
-			}
-		case UNOP_POSITIVE:
-			{
-				// Positive is a do-nothing
-				// TODO: Should complain on voids and non-numbers?
-				expr->SetResultType(operandType);
-				return expr;
-			}
-		default:
-			SS_UNREACHABLE;
+			return new ErrorExpr();
 		}
 
-		return expr;
-	}
-	//---------------------------------------------------------------
-	// NAME EXPRESSION
-	//---------------------------------------------------------------
-	else if(expr->IsA<NameExpr>())
-	{
-		
+		const Type* operandType = operand->GetResultType();
+		SSAssert(operandType != 0);
+
+		if(unExpr->GetOp() == UNOP_LOG_NOT ||
+			unExpr->GetOp() == UNOP_NEGATIVE ||
+			unExpr->GetOp() == UNOP_POSITIVE)
+		{
+			const OverloadVector& candidates = GetUnaryOverloads(unExpr->GetOp());
+			TypeVector types;
+			types.push_back(operandType);
+			OverloadVector resultOverloads;
+			OverloadResolveResult resultCode = ResolveOverloads(types, candidates, resultOverloads);
+
+			if(resultCode == OR_NO_MATCH)
+			{
+				ReportError(expr, 
+							"Operator %s cannot accept operator of type %s",
+							unExpr->GetOpName().c_str(),
+							operandType->GetName().c_str());
+				return new ErrorExpr();
+			}
+			else if(resultCode == OR_AMBIGUOUS)
+			{
+				// TODO: Show possibilities
+				ReportError(expr, 
+							"Operator %s cannot accept operator of type %s due to ambiguity",
+							unExpr->GetOpName().c_str(),
+							operandType->GetName().c_str());
+				return new ErrorExpr();
+			}
+			else //if(resultCode == OR_SINGLE_MATCH)
+			{
+				SSAssert(resultOverloads.size() == 1);
+				SSAssert(resultOverloads[0] != 0);
+
+				const OverloadCandidate* const match = resultOverloads[0];
+
+				// Stitch up params with casts if necessary
+				if(match->types[0] != operandType)
+				{
+					CastExpr* cast = new CastExpr(match->types[0], operand);
+					unExpr->SetOperand(cast);
+				}
+
+				Type* returnType = reinterpret_cast<Type*>(match->userData);
+				expr->SetResultType(returnType);
+				return expr;
+			}
+		}
+		else
+		{
+			ReportError(expr, "Temporarily unsupported unary expr type");
+			return new ErrorExpr();
+		}
 	}
 	else
 	{
-		ReportError(expr, "Temporarily unsupported expr type");
+		ReportError(expr, "Temporarily unsupported expr type: %s",
+					expr->DynamicType()->GetName());
 		return new ErrorExpr();
 	}
 }

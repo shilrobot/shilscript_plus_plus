@@ -1,7 +1,6 @@
 #ifndef SS_TYPE_H
 #define SS_TYPE_H
 
-#include "Node.h"
 #include "TypeExpr.h"
 
 namespace SS {
@@ -21,6 +20,7 @@ namespace SS {
 #define SS_T_CHAR (SS::Type::GetBasicType(BT_CHAR))
 #define SS_T_STRING (SS::Type::GetBasicType(BT_STRING))
 #define SS_T_OBJECT (SS::Type::GetBasicType(BT_OBJECT))
+#define SS_T_NULLTYPE (static_cast<const Type*>(SS::NullType::Get()))
 
 class SS_EXPORT Type : public Base
 { 
@@ -28,13 +28,6 @@ public:
 	SS_CLASS(Type, "Type", Base)
 
 	virtual String GetName() const=0;
-
-	/*
-	SS_NAMED_NODE
-	SS_CONTAINER_NODE
-	SS_NODE_TYPE_NAME("type");
-	*/
-
 	static Type* GetBasicType(BasicTypeId id);
 };
 
@@ -55,6 +48,20 @@ public:
 private:
 	BasicTypeId m_typeid;
 	String m_typeName;
+};
+
+class SS_EXPORT NullType : public Type
+{
+public:
+	SS_CLASS(NullType, "NullType", Type);
+
+	String GetName() const { return "null-type"; }
+
+	static const NullType* Get()
+	{
+		static NullType instance;
+		return &instance;
+	}
 };
 
 }

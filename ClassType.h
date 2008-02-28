@@ -1,9 +1,10 @@
 #ifndef SS_CLASSTYPE_H
 #define SS_CLASSTYPE_H
 
-namespace SS {
-
+#include "Prereqs.h"
 #include "Type.h"
+
+namespace SS {
 
 class Class;
 
@@ -19,7 +20,7 @@ public:
 
 	Class* GetClass() const { return m_cls; }	
 
-	String GetName() const { return m_cls->GetFullName(); }
+	String GetName() const;
 
 public:
 	Class* m_cls;

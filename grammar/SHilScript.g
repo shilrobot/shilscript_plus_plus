@@ -51,6 +51,9 @@ header "post_include_cpp" {
 	#pragma warning(disable: 4101) // unreferenced local variable
 #endif
 
+// Sets node's file/line info to match tok's
+#define SS_LOCATE(node,tok) { node->SetFile(m_fileInfo); node->SetLine(tok->getLine()); }
+
 }
 
 //----------------------------------------------------------------------------
@@ -75,9 +78,12 @@ options {
 }
 
 {
+public:
 	void reportError(const antlr::RecognitionException& ex);
 	void reportError(const std::string& s);
 	void reportWarning(const std::string& s);
+	
+	FileInfo* m_fileInfo;
 }
 
 translationUnit[Package* pkg]
@@ -107,6 +113,7 @@ classDef returns [Class* cls = new Class()]
 		(COLON btExpr=type)?
 		
 		{
+			SS_LOCATE(cls, cname);
 			cls->SetName(cname->getText());
 			cls->SetBaseExpr(btExpr);
 		}
@@ -154,6 +161,7 @@ funcSig[Function* func]
 		{
 			if(func!=0)
 			{
+				SS_LOCATE(func,fname);
 				if(rtExpr != 0)
 					func->SetReturnTypeExpr(rtExpr);
 				else
@@ -194,6 +202,7 @@ param returns[Parameter* param = new Parameter()]
 	:	typ=type pname:ID
 	
 		{
+			SS_LOCATE(param, pname);
 			param->SetTypeExpr(typ);
 			param->SetName(pname->getText());
 		}
@@ -216,6 +225,7 @@ variableDef returns [Variable* var = new Variable()]
 		SEMI
 		
 		{
+			SS_LOCATE(var, vname);
 			var->SetName(vname->getText());
 			var->SetTypeExpr(typ);
 			var->SetInitExpr(initExpr);
@@ -240,33 +250,38 @@ expr returns[Expr* expr = 0]
 	:	expr=assignExpr
 	;
 	
-assignOp returns[BinaryOp op = BINOP_NONE]
-	:	ASSIGN			{ op = BINOP_NONE; }
-	|	PLUS_EQ			{ op = BINOP_ADD; }
-	|	MINUS_EQ		{ op = BINOP_SUB; }
-	|	MUL_EQ			{ op = BINOP_MUL; }
-	|	DIV_EQ			{ op = BINOP_DIV; }
-	|	MODULO_EQ		{ op = BINOP_MOD; }
-	|	POWER_EQ		{ op = BINOP_POW; }
-	|	AND_EQ			{ op = BINOP_BIT_AND; }
-	|	PIPE_EQ			{ op = BINOP_BIT_OR; }
-	|	XOR_EQ			{ op = BINOP_BIT_XOR; }
-	|	LOGICAL_AND_EQ	{ op = BINOP_LOG_AND; }
-	|	LOGICAL_OR_EQ	{ op = BINOP_LOG_OR; }
-	|	LSHIFT_EQ		{ op = BINOP_SHL; }
-	|	RSHIFT_EQ		{ op = BINOP_SHR; }
+assignOp[int& line] returns[BinaryOp op = BINOP_NONE]
+	:	op1:ASSIGN			{ op = BINOP_NONE;		line = op1->getLine(); }
+	|	op2:PLUS_EQ			{ op = BINOP_ADD;		line = op2->getLine(); }
+	|	op3:MINUS_EQ		{ op = BINOP_SUB;		line = op3->getLine(); }
+	|	op4:MUL_EQ			{ op = BINOP_MUL;		line = op4->getLine(); }
+	|	op5:DIV_EQ			{ op = BINOP_DIV;		line = op5->getLine(); }
+	|	op6:MODULO_EQ		{ op = BINOP_MOD;		line = op6->getLine(); }
+	|	op7:POWER_EQ		{ op = BINOP_POW;		line = op7->getLine(); }
+	|	op8:AND_EQ			{ op = BINOP_BIT_AND;	line = op8->getLine(); }
+	|	op9:PIPE_EQ			{ op = BINOP_BIT_OR;	line = op9->getLine(); }
+	|	op10:XOR_EQ			{ op = BINOP_BIT_XOR;	line = op10->getLine(); }
+	|	op11:LOGICAL_AND_EQ	{ op = BINOP_LOG_AND;	line = op11->getLine(); }
+	|	op12:LOGICAL_OR_EQ	{ op = BINOP_LOG_OR;	line = op12->getLine(); }
+	|	op13:LSHIFT_EQ		{ op = BINOP_SHL;		line = op13->getLine(); }
+	|	op14:RSHIFT_EQ		{ op = BINOP_SHR;		line = op14->getLine(); }
 	;
 	
 assignExpr returns[Expr* expr = 0]
 	{
 		BinaryOp op = BINOP_NONE;
 		Expr* right = 0;
+		int line;
 	}
 	:	expr=ternaryExpr
 		(
-			op=assignOp right=assignExpr
+			op=assignOp[line] right=assignExpr
 			
-			{ expr = new AssignExpr(op, expr, right); }			
+			{
+				expr = new AssignExpr(op, expr, right);
+				expr->SetFile(m_fileInfo);
+				expr->SetLine(line);
+			}			
 		)?
 	;
 	
@@ -277,9 +292,12 @@ ternaryExpr returns[Expr* ex = 0]
 	}
 	:	ex=logicalOrExpr
 		(
-			QUESTION ifTrue=expr COLON ifFalse=ternaryExpr
+			qmark:QUESTION ifTrue=expr COLON ifFalse=ternaryExpr
 			
-			{ ex = new TernaryExpr(ex, ifTrue, ifFalse); }
+			{
+				ex = new TernaryExpr(ex, ifTrue, ifFalse);
+				SS_LOCATE(ex, qmark);
+			}
 		)?
 	;
 	
@@ -289,9 +307,12 @@ logicalOrExpr returns[Expr* expr = 0]
 	}
 	:	expr=logicalAndExpr
 		(
-			LOGICAL_OR right=logicalAndExpr
+			op:LOGICAL_OR right=logicalAndExpr
 			
-			{ expr = new BinaryExpr(BINOP_LOG_OR, expr, right); }
+			{
+				expr = new BinaryExpr(BINOP_LOG_OR, expr, right);
+				SS_LOCATE(expr, op);
+			}
 		)*
 	;
 	
@@ -301,9 +322,12 @@ logicalAndExpr returns[Expr* expr = 0]
 	}
 	:	expr=bitwiseOrExpr
 		(
-			LOGICAL_AND right=bitwiseOrExpr
+			op:LOGICAL_AND right=bitwiseOrExpr
 			
-			{ expr = new BinaryExpr(BINOP_LOG_AND, expr, right); }
+			{
+				expr = new BinaryExpr(BINOP_LOG_AND, expr, right);
+				SS_LOCATE(expr, op);
+			}
 		)*
 	;
 	
@@ -313,9 +337,12 @@ bitwiseOrExpr returns[Expr* expr = 0]
 	}
 	:	expr=bitwiseXorExpr
 		(
-			PIPE right=bitwiseXorExpr
+			op:PIPE right=bitwiseXorExpr
 			
-			{ expr = new BinaryExpr(BINOP_BIT_OR, expr, right); }
+			{
+				expr = new BinaryExpr(BINOP_BIT_OR, expr, right);
+				SS_LOCATE(expr, op);
+			}
 		)*
 	;
 	
@@ -325,9 +352,12 @@ bitwiseXorExpr returns[Expr* expr = 0]
 	}
 	:	expr=bitwiseAndExpr
 		(
-			XOR right=bitwiseAndExpr
+			op:XOR right=bitwiseAndExpr
 			
-			{ expr = new BinaryExpr(BINOP_BIT_XOR, expr, right); }
+			{
+				expr = new BinaryExpr(BINOP_BIT_XOR, expr, right);
+				SS_LOCATE(expr, op);
+			}
 		)*
 	;
 	
@@ -337,9 +367,12 @@ bitwiseAndExpr returns[Expr* expr = 0]
 	}
 	:	expr=equalityExpr
 		(
-			AND right=equalityExpr
+			op:AND right=equalityExpr
 			
-			{ expr = new BinaryExpr(BINOP_BIT_AND, expr, right); }			
+			{
+				expr = new BinaryExpr(BINOP_BIT_AND, expr, right);
+				SS_LOCATE(expr, op);
+			}			
 		)*
 	;
 	
@@ -349,8 +382,8 @@ equalityExpr returns[Expr* expr = 0]
 	}
 	:	expr=comparisonExpr
 		(
-			EQUALS_EQUALS	right=comparisonExpr	{ expr = new BinaryExpr(BINOP_EQ, expr, right); }
-			| NOT_EQ		right=comparisonExpr	{ expr = new BinaryExpr(BINOP_NE, expr, right); }
+			op1:EQUALS_EQUALS	right=comparisonExpr	{ expr = new BinaryExpr(BINOP_EQ, expr, right); SS_LOCATE(expr,op1); }
+			| op2:NOT_EQ		right=comparisonExpr	{ expr = new BinaryExpr(BINOP_NE, expr, right); SS_LOCATE(expr,op2); }
 		)*
 	;
 	
@@ -360,10 +393,10 @@ comparisonExpr returns[Expr* expr = 0]
 	}
 	:	expr=shiftExpr
 		(
-			LANGLE			right=shiftExpr		{ expr = new BinaryExpr(BINOP_LT, expr, right); }
-			| RANGLE		right=shiftExpr		{ expr = new BinaryExpr(BINOP_GT, expr, right); }
-			| LESS_EQ		right=shiftExpr		{ expr = new BinaryExpr(BINOP_LE, expr, right); }
-			| GREATER_EQ	right=shiftExpr		{ expr = new BinaryExpr(BINOP_GE, expr, right); }
+			op1:LANGLE			right=shiftExpr		{ expr = new BinaryExpr(BINOP_LT, expr, right); SS_LOCATE(expr,op1); }
+			| op2:RANGLE		right=shiftExpr		{ expr = new BinaryExpr(BINOP_GT, expr, right); SS_LOCATE(expr,op2); }
+			| op3:LESS_EQ		right=shiftExpr		{ expr = new BinaryExpr(BINOP_LE, expr, right); SS_LOCATE(expr,op3); }
+			| op4:GREATER_EQ	right=shiftExpr		{ expr = new BinaryExpr(BINOP_GE, expr, right); SS_LOCATE(expr,op4); }
 		)*
 	;
 	
@@ -373,8 +406,8 @@ shiftExpr returns[Expr* expr = 0]
 	}
 	:	expr=additiveExpr
 		(
-			LSHIFT		right=additiveExpr	{ expr = new BinaryExpr(BINOP_SHL, expr, right); }
-			| RSHIFT	right=additiveExpr	{ expr = new BinaryExpr(BINOP_SHR, expr, right); }
+			op1:LSHIFT		right=additiveExpr	{ expr = new BinaryExpr(BINOP_SHL, expr, right); SS_LOCATE(expr, op1); }
+			| op2:RSHIFT	right=additiveExpr	{ expr = new BinaryExpr(BINOP_SHR, expr, right); SS_LOCATE(expr, op2); }
 		)*
 	;
 	
@@ -384,8 +417,8 @@ additiveExpr returns[Expr* expr = 0]
 	}
 	:	expr=multiplicationExpr
 		(
-			PLUS	right=multiplicationExpr	{ expr = new BinaryExpr(BINOP_ADD, expr, right); }
-			| MINUS	right=multiplicationExpr	{ expr = new BinaryExpr(BINOP_SUB, expr, right); }
+			op1:PLUS	right=multiplicationExpr	{ expr = new BinaryExpr(BINOP_ADD, expr, right); SS_LOCATE(expr, op1); }
+			| op2:MINUS	right=multiplicationExpr	{ expr = new BinaryExpr(BINOP_SUB, expr, right); SS_LOCATE(expr, op2); }
 		)*
 	;
 
@@ -396,9 +429,9 @@ multiplicationExpr returns[Expr* expr = 0]
 	}
 	:	expr=exponentExpr
 		(
-			STAR		right=exponentExpr	{ expr = new BinaryExpr(BINOP_MUL, expr, right); }
-			| DIV		right=exponentExpr	{ expr = new BinaryExpr(BINOP_DIV, expr, right); }
-			| MODULO	right=exponentExpr	{ expr = new BinaryExpr(BINOP_MOD, expr, right); }
+			op1:STAR		right=exponentExpr	{ expr = new BinaryExpr(BINOP_MUL, expr, right); SS_LOCATE(expr, op1); }
+			| op2:DIV		right=exponentExpr	{ expr = new BinaryExpr(BINOP_DIV, expr, right); SS_LOCATE(expr, op2); }
+			| op3:MODULO	right=exponentExpr	{ expr = new BinaryExpr(BINOP_MOD, expr, right); SS_LOCATE(expr, op3); }
 		)*
 	;
 	
@@ -408,9 +441,12 @@ exponentExpr returns[Expr* expr = 0]
 	}
 	:	expr=prefixUnaryExpr
 		(
-			STAR_STAR right=exponentExpr
+			op:POWER right=exponentExpr
 			
-			{ expr = new BinaryExpr(BINOP_POW, expr, right); }
+			{
+				expr = new BinaryExpr(BINOP_POW, expr, right);
+				SS_LOCATE(expr, op);
+			}
 		)?
 	;
 
@@ -422,16 +458,16 @@ prefixUnaryExpr returns[Expr* expr=0]
 		TypeExpr* typ = 0;
 	}
 	:	(LPAREN type RPAREN prefixUnaryExpr)=> 
-			LPAREN typ=type RPAREN expr=prefixUnaryExpr
+			op1:LPAREN typ=type RPAREN expr=prefixUnaryExpr
 			
-		{ expr = new CastExpr(typ, expr); }
+		{ expr = new CastExpr(typ, expr); SS_LOCATE(expr, op1); }
 			
-	|	NOT			expr=prefixUnaryExpr { expr = new UnaryExpr(UNOP_LOG_NOT, expr); }
-	|	COMPLEMENT	expr=prefixUnaryExpr { expr = new UnaryExpr(UNOP_COMPLEMENT, expr); }
-	|	INCREMENT	expr=prefixUnaryExpr { expr = new UnaryExpr(UNOP_PRE_INC, expr); }
-	|	DECREMENT	expr=prefixUnaryExpr { expr = new UnaryExpr(UNOP_PRE_DEC, expr); }
-	|	MINUS		expr=prefixUnaryExpr { expr = new UnaryExpr(UNOP_NEGATIVE, expr); }
-	|	PLUS		expr=prefixUnaryExpr { expr = new UnaryExpr(UNOP_POSITIVE, expr); }
+	|	op2:NOT			expr=prefixUnaryExpr { expr = new UnaryExpr(UNOP_LOG_NOT, expr);	SS_LOCATE(expr, op2); }
+	|	op3:COMPLEMENT	expr=prefixUnaryExpr { expr = new UnaryExpr(UNOP_COMPLEMENT, expr); SS_LOCATE(expr, op3); }
+	|	op4:INCREMENT	expr=prefixUnaryExpr { expr = new UnaryExpr(UNOP_PRE_INC, expr);	SS_LOCATE(expr, op4); }
+	|	op5:DECREMENT	expr=prefixUnaryExpr { expr = new UnaryExpr(UNOP_PRE_DEC, expr);	SS_LOCATE(expr, op5); }
+	|	op6:MINUS		expr=prefixUnaryExpr { expr = new UnaryExpr(UNOP_NEGATIVE, expr);	SS_LOCATE(expr, op6); }
+	|	op7:PLUS		expr=prefixUnaryExpr { expr = new UnaryExpr(UNOP_POSITIVE, expr);	SS_LOCATE(expr, op7); }
 	
 	|	expr=postfixUnaryExpr
 	;	
@@ -444,11 +480,11 @@ postfixUnaryExpr returns[Expr* ex=0]
 	}
 	:	ex=primaryExpr
 		(
-			INCREMENT							{ ex = new UnaryExpr(UNOP_POST_INC, ex); }
-			|	DECREMENT						{ ex = new UnaryExpr(UNOP_POST_DEC, ex); }
-			|	(DOT id:ID)						{ ex = new MemberExpr(ex, id->getText()); }
-			|	(LBRACKET right=expr RBRACKET)	{ ex = new IndexExpr(ex, right); }
-			|	LPAREN
+			op1:INCREMENT							{ ex = new UnaryExpr(UNOP_POST_INC, ex); SS_LOCATE(ex, op1); }
+			|	op2:DECREMENT						{ ex = new UnaryExpr(UNOP_POST_DEC, ex); SS_LOCATE(ex, op2);  }
+			|	(op3:DOT id:ID)						{ ex = new MemberExpr(ex, id->getText()); SS_LOCATE(ex, op3);  }
+			|	(op4:LBRACKET right=expr RBRACKET)	{ ex = new IndexExpr(ex, right); SS_LOCATE(ex, op4);  }
+			|	op5:LPAREN
 				{ call = new CallExpr(ex); }
 				(
 					p=expr { call->AddParameter(p); }
@@ -457,7 +493,7 @@ postfixUnaryExpr returns[Expr* ex=0]
 					)*
 				)?
 				RPAREN
-				{ ex = call; }
+				{ ex = call; SS_LOCATE(ex, op5); }
 		)*
 	;
 	
@@ -465,25 +501,25 @@ postfixUnaryExpr returns[Expr* ex=0]
 // TODO: I think we have the order wrong for if we go (type)func(params)
 
 primaryExpr returns[Expr* ex = 0]
-	:	id:ID						{ ex = new NameExpr(id->getText()); }
+	:	id:ID						{ ex = new NameExpr(id->getText()); SS_LOCATE(ex, id); }
 	|	ex=literal
 	|	LPAREN ex=expr RPAREN
 	;
 	
 // TODO: Add back in support for adjacent string literals (StringLiteral)+
 literal returns[Expr* expr = 0]
-	:	lit:HexIntLiteral		{ expr = new IntLiteralExpr(lit->getText()); }
-	|	lit1:OctalIntLiteral	{ expr = new IntLiteralExpr(lit1->getText()); }
-	|	lit2:DecimalIntLiteral	{ expr = new IntLiteralExpr(lit2->getText()); }
-	|	lit3:FloatLiteral		{ expr = new FloatLiteralExpr(lit3->getText()); }
-	|	lit4:StringLiteral		{ expr = new StringLiteralExpr(lit4->getText()); }
-	|	lit5:CharLiteral		{ expr = new CharLiteralExpr(lit5->getText()); }
-	|	"true"					{ expr = new BoolLiteralExpr(true); }
-	|	"false"					{ expr = new BoolLiteralExpr(false); }
-	|	"this"					{ SSAssert(0); } // TODO
-	|	"null"					{ expr = new NullLiteralExpr(); }
-	|	"global"				{ SSAssert(0); } // TODO
-	|	"super"					{ SSAssert(0); } // TODO - use 'base'?
+	:	lit1:HexIntLiteral		{ expr = new IntLiteralExpr(lit1->getText()); SS_LOCATE(expr, lit1); }
+	|	lit2:OctalIntLiteral	{ expr = new IntLiteralExpr(lit2->getText()); SS_LOCATE(expr, lit2); }
+	|	lit3:DecimalIntLiteral	{ expr = new IntLiteralExpr(lit3->getText()); SS_LOCATE(expr, lit3); }
+	|	lit4:FloatLiteral		{ expr = new FloatLiteralExpr(lit4->getText()); SS_LOCATE(expr, lit4); }
+	|	lit5:StringLiteral		{ expr = new StringLiteralExpr(lit5->getText()); SS_LOCATE(expr, lit5); }
+	|	lit6:CharLiteral		{ expr = new CharLiteralExpr(lit6->getText()); SS_LOCATE(expr, lit6); }
+	|	lit7:"true"				{ expr = new BoolLiteralExpr(true); SS_LOCATE(expr, lit7); }
+	|	lit8:"false"			{ expr = new BoolLiteralExpr(false); SS_LOCATE(expr, lit8); }
+	|	lit9:"this"				{ SSAssert(0); } // TODO
+	|	lit10:"null"			{ expr = new NullLiteralExpr(); SS_LOCATE(expr, lit10); }
+	|	lit11:"global"			{ SSAssert(0); } // TODO
+	|	lit12:"super"			{ SSAssert(0); } // TODO - use 'base'?
 	;
 		
 //----------------------------------------------------------------------------
@@ -512,15 +548,15 @@ returnStmt returns [Statement* st=0]
 	{
 		Expr* ex = 0;
 	}
-	: "return" (ex=expr)? SEMI { st = new ReturnStatement(ex); }
+	: kw:"return" (ex=expr)? SEMI { st = new ReturnStatement(ex); SS_LOCATE(st, kw); }
 	;
 	
 breakStmt returns [Statement* st=0]
-	: "break" SEMI { st = new BreakStatement(); }
+	: kw: "break" SEMI { st = new BreakStatement(); SS_LOCATE(st, kw); }
 	;
 	
 continueStmt returns [Statement* st=0]
-	: "continue" SEMI { st = new BreakStatement(); }
+	: kw:"continue" SEMI { st = new BreakStatement(); SS_LOCATE(st, kw); }
 	;
 	
 // TODO
@@ -542,13 +578,13 @@ forStmt returns [Statement* st=0]
 		Expr* iterate=0;
 		Statement* body=0;
 	}
-	: "for" LPAREN
+	: kw:"for" LPAREN
 		((variableDefStmt) => init=variableDefStmt | init=exprStmt | init=emptyStmt)
 		(cond=expr)? SEMI
 		(iterate=expr)? RPAREN
 		body=statement
 		
-		{ st = new ForStatement(init, cond, iterate, body); }
+		{ st = new ForStatement(init, cond, iterate, body); SS_LOCATE(st, kw); }
 	;
 	
 forEachStmt returns [Statement* st=0]
@@ -557,8 +593,8 @@ forEachStmt returns [Statement* st=0]
 		Expr* listExpr=0;
 		Statement* body=0;
 	}
-	: "foreach" LPAREN typeExpr=type name:ID "in" listExpr=expr RPAREN body=statement
-		{ st = new ForEachStatement(typeExpr, name->getText(), listExpr, body); }
+	: kw:"foreach" LPAREN typeExpr=type name:ID "in" listExpr=expr RPAREN body=statement
+		{ st = new ForEachStatement(typeExpr, name->getText(), listExpr, body); SS_LOCATE(st, kw); }
 	;
 	
 whileStmt returns [Statement* st=0]
@@ -566,8 +602,8 @@ whileStmt returns [Statement* st=0]
 		Expr* cond=0;
 		Statement* body=0;
 	}
-	:	"while" LPAREN cond=expr RPAREN body=statement
-		{ st = new WhileStatement(cond, body); }
+	:	kw:"while" LPAREN cond=expr RPAREN body=statement
+		{ st = new WhileStatement(cond, body); SS_LOCATE(st, kw); }
 	;
 	
 doWhileStmt returns [Statement* st=0]
@@ -575,8 +611,8 @@ doWhileStmt returns [Statement* st=0]
 		Expr* cond=0;
 		Statement* body=0;
 	}
-	:	"do" body=statement "while" LPAREN cond=expr RPAREN SEMI
-		{ st = new DoWhileStatement(cond, body); }
+	:	kw:"do" body=statement "while" LPAREN cond=expr RPAREN SEMI
+		{ st = new DoWhileStatement(cond, body); SS_LOCATE(st, kw); }
 	;
 	
 // TODO: Should we replicate what's in variableDef or not?
@@ -601,7 +637,7 @@ throwStmt returns [Statement* st]
 	{
 		Expr* ex=0;
 	}
-	: "throw" ex=expr SEMI { st = new ThrowStatement(ex); }
+	: kw:"throw" ex=expr SEMI { st = new ThrowStatement(ex); SS_LOCATE(st, kw); }
 	;
 	
 ifStmt returns [Statement* st=0]
@@ -610,14 +646,14 @@ ifStmt returns [Statement* st=0]
 		Statement* ifTrue=0;
 		Statement* ifFalse=0;
 	}
-	: "if" LPAREN cond=expr RPAREN ifTrue=statement
+	: kw:"if" LPAREN cond=expr RPAREN ifTrue=statement
 	  // We know about the 'if(x) if(y) Z; else W;' ambiguity...
 	  (
 	  	options { warnWhenFollowAmbig = false; } :
 	    "else" ifFalse=statement
 	  )?
 	  
-	  { st = new IfStatement(cond, ifTrue, ifFalse); }
+	  { st = new IfStatement(cond, ifTrue, ifFalse);  SS_LOCATE(st, kw); }
 	 ;
 
 blockStmt returns [Statement* st=0]
@@ -625,25 +661,25 @@ blockStmt returns [Statement* st=0]
 		Statement* innerSt = 0;
 		BlockStatement* block = new BlockStatement();
 	}
-	:	LBRACE
+	:	kw:LBRACE
 		(
 			innerSt=statement
 			
 			{ block->AddStatement(innerSt); }
 		)*
 		RBRACE
-		{ st = block; }
+		{ st = block; SS_LOCATE(st, kw); }
 	;
 	
 exprStmt returns [Statement* st=0]
 	{
 		Expr* ex=0;
 	}
-	: ex=expr SEMI { st = new ExprStatement(ex); }
+	: ex=expr SEMI { st = new ExprStatement(ex); st->SetFile(ex->GetFile()); st->SetLine(ex->GetLine()); }
 	;
 	
 emptyStmt returns [Statement* st=0]
-	: SEMI	{ st = new EmptyStatement(); }
+	: kw:SEMI	{ st = new EmptyStatement(); SS_LOCATE(st, kw); }
 	;
 
 	
@@ -657,20 +693,20 @@ type returns [TypeExpr* typ = 0]
 	;
 	
 basicType returns [TypeExpr* typ = 0]
-	: "void" { typ = new BasicTypeExpr(BT_VOID); }
-	| "byte" { typ = new BasicTypeExpr(BT_U1); }
-	| "sbyte" { typ = new BasicTypeExpr(BT_S1); }
-	| "ushort" { typ = new BasicTypeExpr(BT_U2); }
-	| "short" { typ = new BasicTypeExpr(BT_S2); }
-	| "uint" { typ = new BasicTypeExpr(BT_U4); }
-	| "int" { typ = new BasicTypeExpr(BT_S4); }
-	| "ulong" { typ = new BasicTypeExpr(BT_U8); }
-	| "long" { typ = new BasicTypeExpr(BT_S8); }
-	| "float" { typ = new BasicTypeExpr(BT_FLOAT); }
-	| "double" { typ = new BasicTypeExpr(BT_DOUBLE); }
-	| "char" { typ = new BasicTypeExpr(BT_CHAR); }
-	| "string" { typ = new BasicTypeExpr(BT_STRING); }
-	| "object" { typ = new BasicTypeExpr(BT_OBJECT); }
+	: kw1:"void"	{ typ = new BasicTypeExpr(BT_VOID);		SS_LOCATE(typ, kw1); }
+	| kw2:"byte"	{ typ = new BasicTypeExpr(BT_U1);		SS_LOCATE(typ, kw2); }
+	| kw3:"sbyte"	{ typ = new BasicTypeExpr(BT_S1);		SS_LOCATE(typ, kw3); }
+	| kw4:"ushort"	{ typ = new BasicTypeExpr(BT_U2);		SS_LOCATE(typ, kw4); }
+	| kw5:"short"	{ typ = new BasicTypeExpr(BT_S2);		SS_LOCATE(typ, kw5); }
+	| kw6:"uint"	{ typ = new BasicTypeExpr(BT_U4);		SS_LOCATE(typ, kw6); }
+	| kw7:"int"		{ typ = new BasicTypeExpr(BT_S4);		SS_LOCATE(typ, kw7); }
+	| kw8:"ulong"	{ typ = new BasicTypeExpr(BT_U8);		SS_LOCATE(typ, kw8); }
+	| kw9:"long"	{ typ = new BasicTypeExpr(BT_S8);		SS_LOCATE(typ, kw9); }
+	| kw10:"float"	{ typ = new BasicTypeExpr(BT_FLOAT);	SS_LOCATE(typ, kw10); }
+	| kw11:"double"	{ typ = new BasicTypeExpr(BT_DOUBLE);	SS_LOCATE(typ, kw11); }
+	| kw12:"char"	{ typ = new BasicTypeExpr(BT_CHAR);		SS_LOCATE(typ, kw12); }
+	| kw13:"string"	{ typ = new BasicTypeExpr(BT_STRING);	SS_LOCATE(typ, kw13); }
+	| kw14:"object"	{ typ = new BasicTypeExpr(BT_OBJECT);	SS_LOCATE(typ, kw14); }
 	;
 	
 dottedType returns [TypeExpr* typ = 0]
@@ -683,13 +719,15 @@ dottedType returns [TypeExpr* typ = 0]
 		{
 			typ = new NameTypeExpr();
 			typ->SetName(n->getText());
+			SS_LOCATE(typ, n);
 		}
 		
 		(
-			DOT right=dottedType
+			dot:DOT right=dottedType
 			{
 				left = typ;
 				dtExpr = new DottedTypeExpr();
+				SS_LOCATE(dtExpr, dot);
 				dtExpr->SetLeft(left);
 				dtExpr->SetRight(right);
 				typ = dtExpr;

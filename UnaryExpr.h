@@ -44,7 +44,7 @@ public:
 		case UNOP_COMPLEMENT: return "~";
 		case UNOP_NEGATIVE: return "-";
 		case UNOP_POSITIVE: return "+";
-		default: SS_UNREACHABLE;
+		default: SS_UNREACHABLE; return "";
 		}
 	}
 

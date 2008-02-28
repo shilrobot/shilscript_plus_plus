@@ -1,3 +1,4 @@
+#include "Prereqs.h"
 #include "Type.h"
 
 namespace SS {
@@ -6,6 +7,7 @@ namespace SS {
 Type* Type::GetBasicType(BasicTypeId id)
 {
 	static BasicType voidType(BT_VOID, "void");
+	static BasicType boolType(BT_BOOL, "bool");
 	static BasicType byteType(BT_U1, "byte");
 	static BasicType sbyteType(BT_S1, "sbyte");
 	static BasicType ushortType(BT_U2, "ushort");
@@ -23,6 +25,7 @@ Type* Type::GetBasicType(BasicTypeId id)
 	switch(id)
 	{
 	case BT_VOID: return &voidType;
+	case BT_BOOL: return &boolType;
 	case BT_U1: return &byteType;
 	case BT_S1: return &sbyteType;
 	case BT_U2: return &ushortType;

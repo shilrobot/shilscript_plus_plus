@@ -2,6 +2,9 @@
 #define SS_STATICCHECKER_H
 
 #include "Prereqs.h"
+#include "OverloadResolve.h"
+#include "BinaryExpr.h"
+#include "UnaryExpr.h"
 
 namespace SS {
 
@@ -64,9 +67,8 @@ private:
 	void CheckFunctionBody(Function* func);
 	Expr* CheckAndTransformExpr(Expr* expr, const ExprContext& ctx);
 	String DumpExpr(Expr* expr) const;
-	bool IsInteger(Type* type) const;
-	bool IsNumber(Type* type) const;
-	Type* WidenNumbers(Type* a, Type* b) const;
+	const OverloadVector& GetBinaryOverloads(BinaryOp op) const;
+	const OverloadVector& GetUnaryOverloads(UnaryOp op) const;
 
 	bool CheckChild(Node* parent, Node* child);
 
