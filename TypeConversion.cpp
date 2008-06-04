@@ -29,15 +29,15 @@ ConversionType GetConversionType(const Type* const from, const Type* const to)
 	{
 		// bool converts explicitly to all numerical types
 		if(to == SS_T_U1 ||
-			to == SS_T_S1 ||
+			to == SS_T_I1 ||
 			to == SS_T_U2 ||
-			to == SS_T_S2 ||
+			to == SS_T_I2 ||
 			to == SS_T_U4 ||
-			to == SS_T_S4 ||
+			to == SS_T_I4 ||
 			to == SS_T_U8 ||
-			to == SS_T_S8 ||
-			to == SS_T_FLOAT ||
-			to == SS_T_DOUBLE)
+			to == SS_T_I8 ||
+			to == SS_T_F4 ||
+			to == SS_T_F8)
 			return CONV_EXPLICIT;
 		else
 			return CONV_ILLEGAL;
@@ -45,27 +45,27 @@ ConversionType GetConversionType(const Type* const from, const Type* const to)
 	else if(from == SS_T_U1)
 	{
 		if(to == SS_T_U2 ||
-			to == SS_T_S2 ||
+			to == SS_T_I2 ||
 			to == SS_T_U4 ||
-			to == SS_T_S4 ||
+			to == SS_T_I4 ||
 			to == SS_T_U8 ||
-			to == SS_T_S8 ||
-			to == SS_T_FLOAT ||
-			to == SS_T_DOUBLE)
+			to == SS_T_I8 ||
+			to == SS_T_F4 ||
+			to == SS_T_F8)
 			return CONV_IMPLICIT;
 		else if(to == SS_T_BOOL ||
-			to == SS_T_S1)
+			to == SS_T_I1)
 			return CONV_EXPLICIT;
 		else
 			return CONV_ILLEGAL;
 	}
-	else if(from == SS_T_S1)
+	else if(from == SS_T_I1)
 	{
-		if(to == SS_T_S2 ||
-			to == SS_T_S4 ||
-			to == SS_T_S8 ||
-			to == SS_T_FLOAT ||
-			to == SS_T_DOUBLE)
+		if(to == SS_T_I2 ||
+			to == SS_T_I4 ||
+			to == SS_T_I8 ||
+			to == SS_T_F4 ||
+			to == SS_T_F8)
 			return CONV_IMPLICIT;
 		else if(to == SS_T_BOOL ||
 			to == SS_T_U1 ||
@@ -79,30 +79,30 @@ ConversionType GetConversionType(const Type* const from, const Type* const to)
 	else if(from == SS_T_U2)
 	{
 		if(to == SS_T_U4 ||
-			to == SS_T_S4 ||
+			to == SS_T_I4 ||
 			to == SS_T_U8 ||
-			to == SS_T_S8 ||
-			to == SS_T_FLOAT ||
-			to == SS_T_DOUBLE)
+			to == SS_T_I8 ||
+			to == SS_T_F4 ||
+			to == SS_T_F8)
 			return CONV_IMPLICIT;
 		else if(to == SS_T_BOOL ||
 			to == SS_T_U1 ||
-			to == SS_T_S1 ||
-			to == SS_T_S2)
+			to == SS_T_I1 ||
+			to == SS_T_I2)
 			return CONV_EXPLICIT;
 		else
 			return CONV_ILLEGAL;
 	}
-	else if(from == SS_T_S2)
+	else if(from == SS_T_I2)
 	{
-		if(to == SS_T_S4 ||
-			to == SS_T_S8 ||
-			to == SS_T_FLOAT ||
-			to == SS_T_DOUBLE)
+		if(to == SS_T_I4 ||
+			to == SS_T_I8 ||
+			to == SS_T_F4 ||
+			to == SS_T_F8)
 			return CONV_IMPLICIT;
 		else if(to == SS_T_BOOL ||
 			to == SS_T_U1 ||
-			to == SS_T_S1 ||
+			to == SS_T_I1 ||
 			to == SS_T_U2 ||
 			to == SS_T_U4 ||
 			to == SS_T_U8)
@@ -113,31 +113,31 @@ ConversionType GetConversionType(const Type* const from, const Type* const to)
 	else if(from == SS_T_U4)
 	{
 		if(to == SS_T_U8 ||
-			to == SS_T_S8 ||
-			to == SS_T_FLOAT ||
-			to == SS_T_DOUBLE)
+			to == SS_T_I8 ||
+			to == SS_T_F4 ||
+			to == SS_T_F8)
 			return CONV_IMPLICIT;
 		else if(to == SS_T_BOOL ||
 			to == SS_T_U1 ||
-			to == SS_T_S1 ||
+			to == SS_T_I1 ||
 			to == SS_T_U2 ||
-			to == SS_T_S2 ||
-			to == SS_T_S4)
+			to == SS_T_I2 ||
+			to == SS_T_I4)
 			return CONV_EXPLICIT;
 		else
 			return CONV_ILLEGAL;
 	}
-	else if(from == SS_T_S4)
+	else if(from == SS_T_I4)
 	{
-		if(to == SS_T_S8 ||
-			to == SS_T_FLOAT ||
-			to == SS_T_DOUBLE)
+		if(to == SS_T_I8 ||
+			to == SS_T_F4 ||
+			to == SS_T_F8)
 			return CONV_IMPLICIT;
 		else if(to == SS_T_BOOL ||
 			to == SS_T_U1 ||
-			to == SS_T_S1 ||
+			to == SS_T_I1 ||
 			to == SS_T_U2 ||
-			to == SS_T_S2 ||
+			to == SS_T_I2 ||
 			to == SS_T_U4 ||
 			to == SS_T_U8)
 			return CONV_EXPLICIT;
@@ -146,67 +146,67 @@ ConversionType GetConversionType(const Type* const from, const Type* const to)
 	}
 	else if(from == SS_T_U8)
 	{
-		if(to == SS_T_FLOAT ||
-			to == SS_T_DOUBLE)
+		if(to == SS_T_F4 ||
+			to == SS_T_F8)
 			return CONV_IMPLICIT;
 		else if(to == SS_T_BOOL ||
 			to == SS_T_U1 ||
-			to == SS_T_S1 ||
+			to == SS_T_I1 ||
 			to == SS_T_U2 ||
-			to == SS_T_S2 ||
+			to == SS_T_I2 ||
 			to == SS_T_U4 ||
-			to == SS_T_S4 ||
-			to == SS_T_S8)
+			to == SS_T_I4 ||
+			to == SS_T_I8)
 			return CONV_EXPLICIT;
 		else
 			return CONV_ILLEGAL;
 	}
-	else if(from == SS_T_S8)
+	else if(from == SS_T_I8)
 	{
-		if(to == SS_T_FLOAT ||
-			to == SS_T_DOUBLE)
+		if(to == SS_T_F4 ||
+			to == SS_T_F8)
 			return CONV_IMPLICIT;
 		else if(to == SS_T_BOOL ||
 			to == SS_T_U1 ||
-			to == SS_T_S1 ||
+			to == SS_T_I1 ||
 			to == SS_T_U2 ||
-			to == SS_T_S2 ||
+			to == SS_T_I2 ||
 			to == SS_T_U4 ||
-			to == SS_T_S4 ||
+			to == SS_T_I4 ||
 			to == SS_T_U8)
 			return CONV_EXPLICIT;
 		else
 			return CONV_ILLEGAL;
 	}
-	else if(from == SS_T_FLOAT)
+	else if(from == SS_T_F4)
 	{
-		if(to == SS_T_DOUBLE)
+		if(to == SS_T_F8)
 			return CONV_IMPLICIT;
 		else if(to == SS_T_BOOL ||
 			to == SS_T_U1 ||
-			to == SS_T_S1 ||
+			to == SS_T_I1 ||
 			to == SS_T_U2 ||
-			to == SS_T_S2 ||
+			to == SS_T_I2 ||
 			to == SS_T_U4 ||
-			to == SS_T_S4 ||
+			to == SS_T_I4 ||
 			to == SS_T_U8 ||
-			to == SS_T_S8)
+			to == SS_T_I8)
 			return CONV_EXPLICIT;
 		else
 			return CONV_ILLEGAL;
 	}
-	else if(from == SS_T_DOUBLE)
+	else if(from == SS_T_F8)
 	{
 		if(to == SS_T_BOOL ||
 			to == SS_T_U1 ||
-			to == SS_T_S1 ||
+			to == SS_T_I1 ||
 			to == SS_T_U2 ||
-			to == SS_T_S2 ||
+			to == SS_T_I2 ||
 			to == SS_T_U4 ||
-			to == SS_T_S4 ||
+			to == SS_T_I4 ||
 			to == SS_T_U8 ||
-			to == SS_T_S8 ||
-			to == SS_T_FLOAT)
+			to == SS_T_I8 ||
+			to == SS_T_F4)
 			return CONV_EXPLICIT;
 		else
 			return CONV_ILLEGAL;
@@ -306,28 +306,28 @@ extern ConversionComparison CompareConversions(const Type* const src, const Type
 	if(CanImplicitlyConvert(b,a) && !CanImplicitlyConvert(a,b))
 		return CC_B_BETTER;
 
-	if(a == SS_T_S1 && (b == SS_T_U1 || b == SS_T_U2 || b == SS_T_U4 || b == SS_T_U8))
+	if(a == SS_T_I1 && (b == SS_T_U1 || b == SS_T_U2 || b == SS_T_U4 || b == SS_T_U8))
 		return CC_A_BETTER;
 
-	if(b == SS_T_S1 && (a == SS_T_U1 || a == SS_T_U2 || a == SS_T_U4 || a == SS_T_U8))
+	if(b == SS_T_I1 && (a == SS_T_U1 || a == SS_T_U2 || a == SS_T_U4 || a == SS_T_U8))
 		return CC_B_BETTER;
 
-	if(a == SS_T_S2 && (b == SS_T_U2 || b == SS_T_U4 || b == SS_T_U8))
+	if(a == SS_T_I2 && (b == SS_T_U2 || b == SS_T_U4 || b == SS_T_U8))
 		return CC_A_BETTER;
 
-	if(b == SS_T_S2 && (a == SS_T_U2 || a == SS_T_U4 || a == SS_T_U8))
+	if(b == SS_T_I2 && (a == SS_T_U2 || a == SS_T_U4 || a == SS_T_U8))
 		return CC_B_BETTER;
 
-	if(a == SS_T_S4 && (b == SS_T_U4 || b == SS_T_U8))
+	if(a == SS_T_I4 && (b == SS_T_U4 || b == SS_T_U8))
 		return CC_A_BETTER;
 
-	if(b == SS_T_S4 && (a == SS_T_U4 || a == SS_T_U8))
+	if(b == SS_T_I4 && (a == SS_T_U4 || a == SS_T_U8))
 		return CC_B_BETTER;
 
-	if(a == SS_T_S8 && b == SS_T_U8)
+	if(a == SS_T_I8 && b == SS_T_U8)
 		return CC_A_BETTER;
 
-	if(b == SS_T_S8 && a == SS_T_U8)
+	if(b == SS_T_I8 && a == SS_T_U8)
 		return CC_B_BETTER;
 
 	return CC_NEITHER_BETTER;

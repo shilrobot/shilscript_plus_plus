@@ -10,14 +10,18 @@ class Type;
 class Class;
 class Expr;
 class Statement;
+class Local;
 
 class SS_EXPORT Parameter : public Node
 {
 public:
 	SS_CLASS(Parameter, "Parameter", Node)
 
+	Parameter() : m_typeExpr(0), m_type(0), m_id(-1) {}
+
 	SS_GETSET(TypeExpr*, TypeExpr, m_typeExpr);
 	SS_GETSET(Type*, Type, m_type);
+	SS_GETSET(int, ID, m_id);
 
 	SS_NAMED_NODE
 
@@ -26,6 +30,7 @@ public:
 private:
 	TypeExpr*	m_typeExpr;
 	Type*		m_type;
+	int			m_id;
 	// TODO: Flags
 	// TODO: Init expr.
 };
@@ -47,6 +52,8 @@ public:
 	SS_GETSET(Statement*, Body, m_body);
 	SS_ADD(Parameter*, AddParameter, m_params);
 	SS_INDEX(Parameter*, Parameter, m_params);
+	SS_ADD(Local*, AddLocal, m_locals);
+	SS_INDEX(Local*, Local, m_locals);
 	SS_GETSET_BOOL(IsStatic, SetStatic, m_static);
 	SS_GETSET_BOOL(IsVirtual, SetVirtual, m_virtual);
 	SS_GETSET_BOOL(IsSealed, SetSealed, m_sealed);
@@ -65,6 +72,8 @@ private:
 	bool		m_static;
 	bool		m_virtual;
 	bool		m_sealed;
+
+	std::vector<Local*> m_locals;
 
 	// TODO: Code, locals, ...
 	// TODO: more flags?

@@ -150,6 +150,7 @@ typedef std::vector<String> StringVector;
 	int Get##_name##Count() const { return (int)_var.size(); } \
 	_type Get##_name(int i) const { return _var[i]; }
 
-#define SS_UNREACHABLE SSAssertM(0, "Unreachable code reached")
+#define SS_UNREACHABLE { SSAssertM(0, "Unreachable code reached"); }
+#define SS_UNIMPLEMENTED { SSAssertM(0, "Feature not yet implemented"); }
 
 #endif // SS_PREREQS_H

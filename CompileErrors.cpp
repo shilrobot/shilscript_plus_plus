@@ -8,7 +8,7 @@ namespace SS {
 #pragma warning(disable: 4996)
 #endif // SS_COMPILER_MSVC
 
-void ReportError(bool warning, Node* obj, const String& str);
+void ReportError(bool warning, const Node* obj, const String& str);
 
 #define SS_PRINT_TO_BUF(bufname, size, format) \
 	char buf[size]; \
@@ -24,7 +24,7 @@ void ReportError(String format, ...)
 	ReportError(false, NULL, buf);
 }
 
-void ReportError(Node* obj, String format, ...)
+void ReportError(const Node* obj, String format, ...)
 {
 	SS_PRINT_TO_BUF(buf, 1024, format);
 	ReportError(false, obj, buf);
@@ -36,7 +36,7 @@ void ReportWarning(String format, ...)
 	ReportError(true, NULL, buf);
 }
 
-void ReportWarning(Node* obj, String format, ...)
+void ReportWarning(const Node* obj, String format, ...)
 {
 	SS_PRINT_TO_BUF(buf, 1024, format);
 	ReportError(true, obj, buf);
@@ -48,7 +48,7 @@ void ReportWarning(Node* obj, String format, ...)
 
 #undef SS_PRINT_TO_BUF
 
-void ReportError(bool warning, Node* obj, const String& str)
+void ReportError(bool warning, const Node* obj, const String& str)
 {
 	Compiler* compiler = GetActiveCompiler();
 	SSAssert(compiler != 0);

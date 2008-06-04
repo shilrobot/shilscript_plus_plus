@@ -7,9 +7,9 @@
 namespace SS {
 
 SS_EXPORT void ReportError(String format, ...);
-SS_EXPORT void ReportError(Node* obj, String format, ...);
+SS_EXPORT void ReportError(const Node* obj, String format, ...);
 SS_EXPORT void ReportWarning(String format, ...);
-SS_EXPORT void ReportWarning(Node* obj, String format, ...);
+SS_EXPORT void ReportWarning(const Node* obj, String format, ...);
 
 SS_EXPORT bool AnyErrors();
 

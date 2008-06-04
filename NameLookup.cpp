@@ -86,8 +86,20 @@ void NameLookup::LookupName(const String& name, Node* currObj, ILookupVisitor* v
 	}
 	else if(currObj->IsA<Function>())
 	{
-		// TODO: Look up in parameter list
-		// TODO: Look up in enclosing object (usually class)
+		// TODO: Look up in parameter list here instead of in static checker
+		Function* func = dynamic_cast<Function*>(currObj);
+		
+		Node* param = func->GetScope()->Find(name);
+		if(param != 0)
+		{
+			SSAssert(param->IsA<Parameter>());
+			visitor->OnMatch(param);
+		}
+		
+		if(!visitor->OnGroupEnd())
+			return;
+		
+		LookupName(name, func->GetParent(), visitor);
 		return;
 	}
 	// TODO: Scope

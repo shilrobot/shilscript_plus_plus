@@ -36,13 +36,13 @@ class SS_EXPORT IntLiteralExpr : public LiteralExpr
 public:
 	SS_CLASS(IntLiteralExpr, "IntLiteralExpr", Expr);
 
-	IntLiteralExpr(const String& value) : m_value(value)
+	IntLiteralExpr(i4 val) : m_value(val)
 	{
 	}
 
-	SS_GETSET(String, Value, m_value);
+	SS_GETSET(i4, Value, m_value);
 private:
-	String	m_value;
+	i4	m_value;
 };
 
 class SS_EXPORT FloatLiteralExpr : public LiteralExpr

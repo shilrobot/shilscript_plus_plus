@@ -33,12 +33,12 @@ struct StatementContext
 };
 
 // Context info used when compiling an expression
+// TODO: If no extra context develops, then we can probably just dump this & use statement context everywhere
 struct ExprContext
 {
-	bool lvalue;
 	const StatementContext* stmtCtx;
 
-	ExprContext() : lvalue(false), stmtCtx(0)
+	ExprContext() : stmtCtx(0)
 	{
 	}
 };
@@ -65,7 +65,8 @@ private:
 
 	// Third phase: Static checking of function contents
 	void CheckFunctionBody(Function* func);
-	Expr* CheckAndTransformExpr(Expr* expr, const ExprContext& ctx);
+	Expr* CheckExpr(Expr* expr, const ExprContext& ctx);
+	Expr* CheckExprWithType(Expr* expr, const Type* desiredType, const ExprContext& ctx);
 	String DumpExpr(Expr* expr) const;
 	const OverloadVector& GetBinaryOverloads(BinaryOp op) const;
 	const OverloadVector& GetUnaryOverloads(UnaryOp op) const;

@@ -4,6 +4,7 @@
 #include "CompileErrors.h"
 #include "StaticChecker.h"
 #include "Version.h"
+#include "Code.h"
 
 #include "grammar/SSParser.hpp"
 #include "grammar/SSLexer.hpp"

@@ -4,6 +4,7 @@ header {
 	using antlr::Token;
 }
 
+// This goes at the top of SSParser.hpp & SSLexer.hpp, before #including ANTLR stuff
 header "pre_include_hpp" {
 
 #include "../Prereqs.h"
@@ -12,18 +13,9 @@ header "pre_include_hpp" {
 #include "../TypeExpr.h"
 #include "../Function.h"
 #include "../Variable.h"
-#include "../Expr.h"
-#include "../BinaryExpr.h"
-#include "../AssignExpr.h"
-#include "../UnaryExpr.h"
-#include "../LiteralExpr.h"
-#include "../CallExpr.h"
-#include "../CastExpr.h"
-#include "../NameExpr.h"
-#include "../TernaryExpr.h"
-#include "../MemberExpr.h"
-#include "../IndexExpr.h"
+#include "../AllExprs.h"
 #include "../Statement.h"
+#include "../ParseLiteral.h"
 
 // ANTLR uses some stuff that VC8 has decided is deprecated
 // (e.g., stricmp.)
@@ -37,6 +29,7 @@ header "pre_include_hpp" {
 
 }
 
+// This goes at the top of SSParser.hpp & SSLexer.hpp after #including the ANTLR stuff
 header "post_include_hpp" {
 
 #ifdef SS_COMPILER_MSVC
@@ -45,13 +38,14 @@ header "post_include_hpp" {
 
 }
 
+// This goes at the top of SSParser.cpp & SSLexer.cpp after #including ANTLR stuff
 header "post_include_cpp" {
 
 #ifdef SS_COMPILER_MSVC
 	#pragma warning(disable: 4101) // unreferenced local variable
 #endif
 
-// Sets node's file/line info to match tok's
+// Sets node's file/line info to match a token's.
 #define SS_LOCATE(node,tok) { node->SetFile(m_fileInfo); node->SetLine(tok->getLine()); }
 
 }
@@ -77,6 +71,7 @@ options {
 	k = 2;
 }
 
+// This goes inside the SSParser class body.
 {
 public:
 	void reportError(const antlr::RecognitionException& ex);
@@ -508,15 +503,15 @@ primaryExpr returns[Expr* ex = 0]
 	
 // TODO: Add back in support for adjacent string literals (StringLiteral)+
 literal returns[Expr* expr = 0]
-	:	lit1:HexIntLiteral		{ expr = new IntLiteralExpr(lit1->getText()); SS_LOCATE(expr, lit1); }
-	|	lit2:OctalIntLiteral	{ expr = new IntLiteralExpr(lit2->getText()); SS_LOCATE(expr, lit2); }
-	|	lit3:DecimalIntLiteral	{ expr = new IntLiteralExpr(lit3->getText()); SS_LOCATE(expr, lit3); }
+	:	lit1:HexIntLiteral		{ expr = new IntLiteralExpr(ParseHex(lit1->getText())); SS_LOCATE(expr, lit1); }
+	|	lit2:OctalIntLiteral	{ expr = new IntLiteralExpr(ParseOctal(lit2->getText())); SS_LOCATE(expr, lit2); }
+	|	lit3:DecimalIntLiteral	{ expr = new IntLiteralExpr(ParseDecimal(lit3->getText())); SS_LOCATE(expr, lit3); }
 	|	lit4:FloatLiteral		{ expr = new FloatLiteralExpr(lit4->getText()); SS_LOCATE(expr, lit4); }
 	|	lit5:StringLiteral		{ expr = new StringLiteralExpr(lit5->getText()); SS_LOCATE(expr, lit5); }
 	|	lit6:CharLiteral		{ expr = new CharLiteralExpr(lit6->getText()); SS_LOCATE(expr, lit6); }
 	|	lit7:"true"				{ expr = new BoolLiteralExpr(true); SS_LOCATE(expr, lit7); }
 	|	lit8:"false"			{ expr = new BoolLiteralExpr(false); SS_LOCATE(expr, lit8); }
-	|	lit9:"this"				{ SSAssert(0); } // TODO
+	|	lit9:"this"				{ expr = new ThisExpr(); SS_LOCATE(expr, lit9); }
 	|	lit10:"null"			{ expr = new NullLiteralExpr(); SS_LOCATE(expr, lit10); }
 	|	lit11:"global"			{ SSAssert(0); } // TODO
 	|	lit12:"super"			{ SSAssert(0); } // TODO - use 'base'?
@@ -527,7 +522,7 @@ literal returns[Expr* expr = 0]
 //----------------------------------------------------------------------------
 
 statement returns [Statement* st=0]
-	: (variableDefStmt) => st=variableDefStmt
+	: (localDefPreamble) => st=localDefStmt
 	| st=returnStmt
 	| st=breakStmt
 	| st=continueStmt
@@ -579,7 +574,7 @@ forStmt returns [Statement* st=0]
 		Statement* body=0;
 	}
 	: kw:"for" LPAREN
-		((variableDefStmt) => init=variableDefStmt | init=exprStmt | init=emptyStmt)
+		((localDefPreamble) => init=localDefStmt | init=exprStmt | init=emptyStmt)
 		(cond=expr)? SEMI
 		(iterate=expr)? RPAREN
 		body=statement
@@ -615,10 +610,50 @@ doWhileStmt returns [Statement* st=0]
 		{ st = new DoWhileStatement(cond, body); SS_LOCATE(st, kw); }
 	;
 	
-// TODO: Should we replicate what's in variableDef or not?
-// TODO: THIS
-variableDefStmt returns [Statement* st=0]
-	: variableDef
+localDef returns [LocalDef* def=0]
+	{
+		Expr* initExpr=0;
+	}
+	: name:ID ( ASSIGN initExpr=expr )?
+	  {
+		def = new LocalDef(name->getText(), initExpr);
+		SS_LOCATE(def, name);
+	  }
+	;
+	
+// Lets us branch to localdefstmt properly
+localDefPreamble
+	: ( "const" | "static" )* type ID
+	;
+	
+localDefStmt returns [LocalDefStatement* st=0]
+	{
+		TypeExpr* typeExpr = 0;
+		bool first = true;
+		LocalDef* def = 0;
+		bool isStatic=false;
+		bool isConst=false;
+	}
+	: 
+	  ( "const" { isConst=true; }
+		| "static" { isStatic=true; }
+	  )*
+	  typeExpr=type
+	  
+		def=localDef 
+	  {
+		st = new LocalDefStatement(typeExpr);
+		st->SetStatic(isStatic);
+		st->SetConst(isConst);
+		st->SetFile(m_fileInfo); st->SetLine(def->GetLine());
+		st->AddDef(def);
+	  }
+	  
+	  (
+		COMMA def=localDef { st->AddDef(def); }
+	  )*
+	  
+	  SEMI
 	;
 	
 // TODO: Why can't we use normal statements instead of block statements here?
@@ -695,13 +730,13 @@ type returns [TypeExpr* typ = 0]
 basicType returns [TypeExpr* typ = 0]
 	: kw1:"void"	{ typ = new BasicTypeExpr(BT_VOID);		SS_LOCATE(typ, kw1); }
 	| kw2:"byte"	{ typ = new BasicTypeExpr(BT_U1);		SS_LOCATE(typ, kw2); }
-	| kw3:"sbyte"	{ typ = new BasicTypeExpr(BT_S1);		SS_LOCATE(typ, kw3); }
+	| kw3:"sbyte"	{ typ = new BasicTypeExpr(BT_I1);		SS_LOCATE(typ, kw3); }
 	| kw4:"ushort"	{ typ = new BasicTypeExpr(BT_U2);		SS_LOCATE(typ, kw4); }
-	| kw5:"short"	{ typ = new BasicTypeExpr(BT_S2);		SS_LOCATE(typ, kw5); }
+	| kw5:"short"	{ typ = new BasicTypeExpr(BT_I2);		SS_LOCATE(typ, kw5); }
 	| kw6:"uint"	{ typ = new BasicTypeExpr(BT_U4);		SS_LOCATE(typ, kw6); }
-	| kw7:"int"		{ typ = new BasicTypeExpr(BT_S4);		SS_LOCATE(typ, kw7); }
+	| kw7:"int"		{ typ = new BasicTypeExpr(BT_I4);		SS_LOCATE(typ, kw7); }
 	| kw8:"ulong"	{ typ = new BasicTypeExpr(BT_U8);		SS_LOCATE(typ, kw8); }
-	| kw9:"long"	{ typ = new BasicTypeExpr(BT_S8);		SS_LOCATE(typ, kw9); }
+	| kw9:"long"	{ typ = new BasicTypeExpr(BT_I8);		SS_LOCATE(typ, kw9); }
 	| kw10:"float"	{ typ = new BasicTypeExpr(BT_FLOAT);	SS_LOCATE(typ, kw10); }
 	| kw11:"double"	{ typ = new BasicTypeExpr(BT_DOUBLE);	SS_LOCATE(typ, kw11); }
 	| kw12:"char"	{ typ = new BasicTypeExpr(BT_CHAR);		SS_LOCATE(typ, kw12); }

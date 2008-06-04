@@ -2,6 +2,7 @@
 #include "Node.h"
 #include "Package.h"
 #include "StaticChecker.h"
+#include "CodeGen.h"
 #include "grammar/SSLexer.hpp"
 #include "grammar/SSParser.hpp"
 
@@ -107,6 +108,20 @@ Package* Compiler::Compile(const String& pkgName)
 	if(!checker.Check())
 		goto Failed;
 	}
+
+	// CODE GENERATION
+	for(int i=0; i < m_pkg->GetClassCount(); ++i)
+	{
+		Class* cls = m_pkg->GetClass(i);
+		for(int j=0; j < cls->GetFunctionCount(); ++j)
+		{
+			Function* func = cls->GetFunction(j);
+			CodeGen gen(func);
+		}
+	}
+
+	if(AnyErrors())
+		goto Failed;
 
 	ret = m_pkg;
 	m_pkg = 0;

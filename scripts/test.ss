@@ -4,9 +4,13 @@
 //==================================================================
 
 class Foo
-{
-	int foobar(int y)
+{	
+	static int foobar(int y)
 	{
-		a = b;
+		int accum = y;
+		while(accum < 10000) {
+			accum = accum + accum;
+		}
+		return accum;
 	}
 }

@@ -343,6 +343,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\Local.h"
+				>
+			</File>
+			<File
 				RelativePath=".\Node.cpp"
 				>
 			</File>
@@ -418,6 +422,10 @@
 					>
 				</File>
 				<File
+					RelativePath=".\ThisExpr.h"
+					>
+				</File>
+				<File
 					RelativePath=".\TransformExprs.h"
 					>
 				</File>
@@ -455,6 +463,26 @@
 				>
 			</File>
 		</Filter>
+		<Filter
+			Name="Code"
+			>
+			<File
+				RelativePath=".\Code.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Code.h"
+				>
+			</File>
+			<File
+				RelativePath=".\Instr.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Instr.h"
+				>
+			</File>
+		</Filter>
 		<File
 			RelativePath=".\AccessDomain.cpp"
 			>
@@ -465,6 +493,14 @@
 		</File>
 		<File
 			RelativePath=".\Base.h"
+			>
+		</File>
+		<File
+			RelativePath=".\CodeGen.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\CodeGen.h"
 			>
 		</File>
 		<File
@@ -513,6 +549,14 @@
 		</File>
 		<File
 			RelativePath=".\OverloadResolve.h"
+			>
+		</File>
+		<File
+			RelativePath=".\ParseLiteral.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\ParseLiteral.h"
 			>
 		</File>
 		<File

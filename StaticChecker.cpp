@@ -3,10 +3,13 @@
 #include "Class.h"
 #include "Variable.h"
 #include "Function.h"
+#include "NameLookup.h"
 #include "TypeLookup.h"
 #include "Statement.h"
 #include "AllExprs.h"
 #include "TypeConversion.h"
+#include "ClassType.h"
+#include "Local.h"
 
 namespace SS {
 
@@ -92,8 +95,6 @@ bool StaticChecker::Check()
 
 void StaticChecker::ResolveClassBase(Class* cls)
 {	
-	// TODO: Why's this giving zero???
-
 	if(cls->GetBaseExpr() == 0)
 	{
 		// TODO: Set object as base class if there's no base expr
@@ -107,7 +108,7 @@ void StaticChecker::ResolveClassBase(Class* cls)
 		
 	// Check that it is a class.
 	// TODO: Allow "object" as a base class!
-	if(!typ->IsA<Class>())
+	if(!typ->IsA<ClassType>())
 	{
 		ReportError(cls, "Base must be another class");
 		return;
@@ -115,7 +116,7 @@ void StaticChecker::ResolveClassBase(Class* cls)
 
 	// Check that we are not setting up a cycle
 	// (e.g., make sure that cls is not in type's bases)
-	Class* baseClass = dynamic_cast<Class*>(typ);
+	Class* baseClass = dynamic_cast<ClassType*>(typ)->GetClass();
 	Class* currBase = baseClass;
 	while(currBase != 0)
 	{
@@ -306,6 +307,7 @@ bool StaticChecker::CheckFunction(Function* func)
 
 	// Now, we have to check params
 	bool paramsFailed = false;
+	int id = 0;
 	for(int i = 0; i < func->GetParameterCount(); ++i)
 	{
 		Parameter* param = func->GetParameter(i);
@@ -324,7 +326,17 @@ bool StaticChecker::CheckFunction(Function* func)
 			paramsFailed = true;
 			continue;
 		}
+
+		if(paramType == SS_T_VOID)
+		{
+			paramsFailed = true;
+			ReportError(param, "Parameter %s cannot have type void", param->GetName().c_str());
+			continue;
+		}
+
 		param->SetType(paramType);
+		param->SetID(id);
+		++id;
 
 		func->GetScope()->Add(param);
 	}
@@ -382,6 +394,7 @@ void StaticChecker::CheckFunctionBody(Function* func)
 	CheckStatement(func->GetBody(), ctx);
 }
 
+
 void StaticChecker::CheckStatement(Statement* stmt, const StatementContext& ctx)
 {
 	if(stmt->IsA<EmptyStatement>())
@@ -415,9 +428,15 @@ void StaticChecker::CheckStatement(Statement* stmt, const StatementContext& ctx)
 			if(returnStmt->GetExpr() == 0)
 				ReportError(stmt, "Must specify a return value");
 			else
-			{
-				// TODO: Check expr is of correct type
-				SSAssert(0);
+			{				
+				ExprContext exprCtx;
+				exprCtx.stmtCtx = &ctx;
+
+				Expr* returnExpr = CheckExprWithType(returnStmt->GetExpr(), ctx.func->GetReturnType(), exprCtx);
+				SSAssert(returnExpr);
+
+				if(!returnExpr->IsA<ErrorExpr>())
+					returnStmt->SetExpr(returnExpr);
 			}
 		}
 	}
@@ -446,18 +465,171 @@ void StaticChecker::CheckStatement(Statement* stmt, const StatementContext& ctx)
 
 		ExprContext exprCtx;
 		exprCtx.stmtCtx = &ctx;
-		exprCtx.lvalue = false;
 
-		Expr* xformed = CheckAndTransformExpr(exprStmt->GetExpr(), exprCtx);
+		Expr* xformed = CheckExpr(exprStmt->GetExpr(), exprCtx);
 		exprStmt->SetExpr(xformed);
 
 		// TODO: Make sure return type of expr isn't a "pseudovalue" like, say, a function
 		//		 (which currently isn't in the type system, and thus can't properly
 		//		  be 'popped')
 	}
-	// todo: if
-	// todo: while
-	// todo: do-while
+	else if(stmt->IsA<IfStatement>())
+	{
+		IfStatement* ifStmt = dynamic_cast<IfStatement*>(stmt);
+
+		ExprContext exprCtx;
+		exprCtx.stmtCtx = &ctx;
+
+		Expr* cond = CheckExprWithType(ifStmt->GetCondition(), SS_T_BOOL, exprCtx);
+		SSAssert(cond);
+
+		if(!cond->IsA<ErrorExpr>())
+			ifStmt->SetCondition(cond);
+
+		// Check the if-true branch (which is required to exist)
+		SSAssert(ifStmt->GetIfTrue());
+		StatementContext trueCtx(ctx);
+		Scope trueScope;
+		trueCtx.scope = &trueScope;
+		trueCtx.parent = &ctx;
+
+		CheckStatement(ifStmt->GetIfTrue(), trueCtx);
+
+		if(ifStmt->GetIfFalse() != 0)
+		{
+			StatementContext falseCtx(ctx);
+			Scope falseScope;
+			falseCtx.scope = &falseScope;
+			falseCtx.parent = &ctx;
+
+			CheckStatement(ifStmt->GetIfFalse(), falseCtx);
+		}
+	}
+	else if(stmt->IsA<WhileStatement>())
+	{
+		WhileStatement* whileStmt = dynamic_cast<WhileStatement*>(stmt);
+
+		ExprContext exprCtx;
+		exprCtx.stmtCtx = &ctx;
+
+		Expr* cond = CheckExprWithType(whileStmt->GetCondition(), SS_T_BOOL, exprCtx);
+		SSAssert(cond);
+
+		if(!cond->IsA<ErrorExpr>())
+			whileStmt->SetCondition(cond);
+
+		// Check the body of the loop
+		StatementContext bodyCtx(ctx);
+		Scope scope;
+		bodyCtx.scope = &scope;
+		bodyCtx.parent = &ctx;
+		bodyCtx.canBreak = true;
+		bodyCtx.canContinue = true;
+
+		SSAssert(whileStmt->GetBody());
+		CheckStatement(whileStmt->GetBody(), bodyCtx);
+	}
+	else if(stmt->IsA<DoWhileStatement>())
+	{
+		DoWhileStatement* doStmt = dynamic_cast<DoWhileStatement*>(stmt);
+
+		// Check the body of the loop
+		StatementContext bodyCtx(ctx);
+		Scope scope;
+		bodyCtx.scope = &scope;
+		bodyCtx.parent = &ctx;
+		bodyCtx.canBreak = true;
+		bodyCtx.canContinue = true;
+
+		SSAssert(doStmt->GetBody());
+		CheckStatement(doStmt->GetBody(), bodyCtx);
+		
+		ExprContext exprCtx;
+		exprCtx.stmtCtx = &ctx;
+
+		Expr* cond = CheckExprWithType(doStmt->GetCondition(), SS_T_BOOL, exprCtx);
+		SSAssert(cond);
+
+		if(!cond->IsA<ErrorExpr>())
+			doStmt->SetCondition(cond);
+	}
+	else if(stmt->IsA<LocalDefStatement>())
+	{
+		LocalDefStatement* localDefStmt = dynamic_cast<LocalDefStatement*>(stmt);
+
+		Scope* scope = ctx.scope;
+
+		Type* typ = TypeLookup::LookupType( localDefStmt->GetTypeExpr(), ctx.func);
+
+		if(typ == SS_T_VOID)
+		{
+			ReportError(localDefStmt->GetTypeExpr(), "Variables cannot be void");
+			return;
+		}
+
+		if(typ == 0)
+			return;
+
+		for(int i=0; i<localDefStmt->GetDefCount(); ++i)
+		{
+			LocalDef* def = localDefStmt->GetDef(i);
+
+			// TODO: Look up with in our *current* scope
+			String name = def->GetName();
+			bool bValidName = true;
+
+			if(!IsValidName(name))
+			{
+				// TODO: Can we do better than this? E.g. say what's wrong with the name?
+				ReportError(def, "Invalid name %s", SS_QUOTE(name));
+				bValidName = false;
+			}
+			else
+			{
+				Node* conflict = scope->Find(name);
+				if(conflict != 0)
+				{
+					// TODO: Better error message
+					ReportError(def, "Name %s conflicts with %s",
+										SS_QUOTE(name),
+										conflict->GetDesc().c_str());
+					bValidName = false;
+				}
+			}
+
+			Expr* initExpr = 0;
+			bool bInitExprFailed = false;
+
+			if(typ != 0 && def->GetInitExpr())
+			{
+				ExprContext exprCtx;
+				exprCtx.stmtCtx = &ctx;
+				Expr* initExpr = CheckExprWithType(def->GetInitExpr(), typ, exprCtx);
+				SSAssert(initExpr);
+				
+				// TODO: memory management
+				if(initExpr->IsA<ErrorExpr>())
+					bInitExprFailed = true;
+
+				def->SetInitExpr(initExpr);
+			}
+
+			if(bValidName && !bInitExprFailed)
+			{
+				Local* local = new Local();
+				local->SetName(name);
+				local->SetType(typ);
+				//local->SetInitExpr(initExpr);
+
+				local->SetID(ctx.func->GetLocalCount());
+
+				ctx.func->AddLocal(local);
+				scope->Add(local);
+
+				def->SetLocal(local);
+			}
+		}
+	}
 	// todo: for
 	// todo: foreach
 	// todo: switch
@@ -466,7 +638,7 @@ void StaticChecker::CheckStatement(Statement* stmt, const StatementContext& ctx)
 	else
 	{
 		// Not implemented...
-		SSAssert(0);
+		SSAssert(0 && "Other statements not implemented yet");
 	}
 }
 
@@ -506,77 +678,77 @@ const OverloadVector& StaticChecker::GetBinaryOverloads(BinaryOp op) const
 	// TODO: Return types
 
 	OVERLOAD_BEGIN(BINOP_ADD, "+")
-		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_I4, SS_T_I4, SS_T_I4)
 		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
-		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD(SS_T_I8, SS_T_I8, SS_T_I8)
 		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
-		OVERLOAD_ADD(SS_T_FLOAT, SS_T_FLOAT, SS_T_FLOAT)
-		OVERLOAD_ADD(SS_T_DOUBLE, SS_T_DOUBLE, SS_T_DOUBLE)
+		OVERLOAD_ADD(SS_T_F4, SS_T_F4, SS_T_F4)
+		OVERLOAD_ADD(SS_T_F8, SS_T_F8, SS_T_F8)
 		OVERLOAD_ADD(SS_T_STRING, SS_T_STRING, SS_T_STRING)
 	OVERLOAD_END
 
 	OVERLOAD_BEGIN(BINOP_SUB, "-")
-		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_I4, SS_T_I4, SS_T_I4)
 		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
-		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD(SS_T_I8, SS_T_I8, SS_T_I8)
 		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
-		OVERLOAD_ADD(SS_T_FLOAT, SS_T_FLOAT, SS_T_FLOAT)
-		OVERLOAD_ADD(SS_T_DOUBLE, SS_T_DOUBLE, SS_T_DOUBLE)
+		OVERLOAD_ADD(SS_T_F4, SS_T_F4, SS_T_F4)
+		OVERLOAD_ADD(SS_T_F8, SS_T_F8, SS_T_F8)
 	OVERLOAD_END
 
 	OVERLOAD_BEGIN(BINOP_MUL, "*")
-		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_I4, SS_T_I4, SS_T_I4)
 		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
-		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD(SS_T_I8, SS_T_I8, SS_T_I8)
 		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
-		OVERLOAD_ADD(SS_T_FLOAT, SS_T_FLOAT, SS_T_FLOAT)
-		OVERLOAD_ADD(SS_T_DOUBLE, SS_T_DOUBLE, SS_T_DOUBLE)
+		OVERLOAD_ADD(SS_T_F4, SS_T_F4, SS_T_F4)
+		OVERLOAD_ADD(SS_T_F8, SS_T_F8, SS_T_F8)
 	OVERLOAD_END
 
 	OVERLOAD_BEGIN(BINOP_DIV, "/")
-		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_I4, SS_T_I4, SS_T_I4)
 		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
-		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD(SS_T_I8, SS_T_I8, SS_T_I8)
 		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
-		OVERLOAD_ADD(SS_T_FLOAT, SS_T_FLOAT, SS_T_FLOAT)
-		OVERLOAD_ADD(SS_T_DOUBLE, SS_T_DOUBLE, SS_T_DOUBLE)
+		OVERLOAD_ADD(SS_T_F4, SS_T_F4, SS_T_F4)
+		OVERLOAD_ADD(SS_T_F8, SS_T_F8, SS_T_F8)
 	OVERLOAD_END
 
 	OVERLOAD_BEGIN(BINOP_MOD, "%")
-		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_I4, SS_T_I4, SS_T_I4)
 		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
-		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD(SS_T_I8, SS_T_I8, SS_T_I8)
 		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
 
 		// Works on floats too, a la C#
-		OVERLOAD_ADD(SS_T_FLOAT, SS_T_FLOAT, SS_T_FLOAT)
-		OVERLOAD_ADD(SS_T_DOUBLE, SS_T_DOUBLE, SS_T_DOUBLE)
+		OVERLOAD_ADD(SS_T_F4, SS_T_F4, SS_T_F4)
+		OVERLOAD_ADD(SS_T_F8, SS_T_F8, SS_T_F8)
 	OVERLOAD_END
 
 	OVERLOAD_BEGIN(BINOP_POW, "**")
 		// TODO: Should it work on ints?
-		OVERLOAD_ADD(SS_T_FLOAT, SS_T_FLOAT, SS_T_FLOAT)
-		OVERLOAD_ADD(SS_T_DOUBLE, SS_T_DOUBLE, SS_T_DOUBLE)
+		OVERLOAD_ADD(SS_T_F4, SS_T_F4, SS_T_F4)
+		OVERLOAD_ADD(SS_T_F8, SS_T_F8, SS_T_F8)
 	OVERLOAD_END
 
 	OVERLOAD_BEGIN(BINOP_BIT_AND, "&")
-		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_I4, SS_T_I4, SS_T_I4)
 		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
-		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD(SS_T_I8, SS_T_I8, SS_T_I8)
 		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
 	OVERLOAD_END
 
 	OVERLOAD_BEGIN(BINOP_BIT_OR, "|")
-		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_I4, SS_T_I4, SS_T_I4)
 		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
-		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD(SS_T_I8, SS_T_I8, SS_T_I8)
 		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
 	OVERLOAD_END
 
 	OVERLOAD_BEGIN(BINOP_BIT_XOR, "^")
-		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD(SS_T_I4, SS_T_I4, SS_T_I4)
 		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
-		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD(SS_T_I8, SS_T_I8, SS_T_I8)
 		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
 	OVERLOAD_END
 
@@ -589,53 +761,53 @@ const OverloadVector& StaticChecker::GetBinaryOverloads(BinaryOp op) const
 	OVERLOAD_END
 
 	OVERLOAD_BEGIN(BINOP_SHL, "<<")
-		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
-		OVERLOAD_ADD(SS_T_U4, SS_T_S4, SS_T_U4)
-		OVERLOAD_ADD(SS_T_S8, SS_T_S4, SS_T_S8)
-		OVERLOAD_ADD(SS_T_U8, SS_T_S4, SS_T_U8)
+		OVERLOAD_ADD(SS_T_I4, SS_T_I4, SS_T_I4)
+		OVERLOAD_ADD(SS_T_U4, SS_T_I4, SS_T_U4)
+		OVERLOAD_ADD(SS_T_I8, SS_T_I4, SS_T_I8)
+		OVERLOAD_ADD(SS_T_U8, SS_T_I4, SS_T_U8)
 	OVERLOAD_END
 
 	OVERLOAD_BEGIN(BINOP_SHR, ">>")
-		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
-		OVERLOAD_ADD(SS_T_U4, SS_T_S4, SS_T_U4)
-		OVERLOAD_ADD(SS_T_S8, SS_T_S4, SS_T_S8)
-		OVERLOAD_ADD(SS_T_U8, SS_T_S4, SS_T_U8)
+		OVERLOAD_ADD(SS_T_I4, SS_T_I4, SS_T_I4)
+		OVERLOAD_ADD(SS_T_U4, SS_T_I4, SS_T_U4)
+		OVERLOAD_ADD(SS_T_I8, SS_T_I4, SS_T_I8)
+		OVERLOAD_ADD(SS_T_U8, SS_T_I4, SS_T_U8)
 	OVERLOAD_END
 
 	OVERLOAD_BEGIN(BINOP_LT, "<")
-		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
-		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
-		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
-		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
-		OVERLOAD_ADD(SS_T_FLOAT, SS_T_FLOAT, SS_T_FLOAT)
-		OVERLOAD_ADD(SS_T_DOUBLE, SS_T_DOUBLE, SS_T_DOUBLE)
+		OVERLOAD_ADD(SS_T_I4, SS_T_I4, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_I8, SS_T_I8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_F4, SS_T_F4, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_F8, SS_T_F8, SS_T_BOOL)
 	OVERLOAD_END
 
 	OVERLOAD_BEGIN(BINOP_LE, "<=")
-		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
-		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
-		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
-		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
-		OVERLOAD_ADD(SS_T_FLOAT, SS_T_FLOAT, SS_T_FLOAT)
-		OVERLOAD_ADD(SS_T_DOUBLE, SS_T_DOUBLE, SS_T_DOUBLE)
+		OVERLOAD_ADD(SS_T_I4, SS_T_I4, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_I8, SS_T_I8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_F4, SS_T_F4, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_F8, SS_T_F8, SS_T_BOOL)
 	OVERLOAD_END
 	
 	OVERLOAD_BEGIN(BINOP_GT, ">")
-		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
-		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
-		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
-		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
-		OVERLOAD_ADD(SS_T_FLOAT, SS_T_FLOAT, SS_T_FLOAT)
-		OVERLOAD_ADD(SS_T_DOUBLE, SS_T_DOUBLE, SS_T_DOUBLE)
+		OVERLOAD_ADD(SS_T_I4, SS_T_I4, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_I8, SS_T_I8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_F4, SS_T_F4, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_F8, SS_T_F8, SS_T_BOOL)
 	OVERLOAD_END
 
 	OVERLOAD_BEGIN(BINOP_GE, ">=")
-		OVERLOAD_ADD(SS_T_S4, SS_T_S4, SS_T_S4)
-		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
-		OVERLOAD_ADD(SS_T_S8, SS_T_S8, SS_T_S8)
-		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_U8)
-		OVERLOAD_ADD(SS_T_FLOAT, SS_T_FLOAT, SS_T_FLOAT)
-		OVERLOAD_ADD(SS_T_DOUBLE, SS_T_DOUBLE, SS_T_DOUBLE)
+		OVERLOAD_ADD(SS_T_I4, SS_T_I4, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_I8, SS_T_I8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_F4, SS_T_F4, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_F8, SS_T_F8, SS_T_BOOL)
 	OVERLOAD_END
 
 	default:
@@ -653,35 +825,33 @@ const OverloadVector& StaticChecker::GetUnaryOverloads(UnaryOp op) const
 	switch(op)
 	{	
 
-	// TODO: Return types
-
 	OVERLOAD_BEGIN(UNOP_LOG_NOT, "!")
 		OVERLOAD_ADD_UN(SS_T_BOOL, SS_T_BOOL)
 	OVERLOAD_END
 
 	OVERLOAD_BEGIN(UNOP_COMPLEMENT, "~")
-		OVERLOAD_ADD_UN(SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD_UN(SS_T_I4, SS_T_I4)
 		OVERLOAD_ADD_UN(SS_T_U4, SS_T_U4)
-		OVERLOAD_ADD_UN(SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD_UN(SS_T_I8, SS_T_I8)
 		OVERLOAD_ADD_UN(SS_T_U8, SS_T_U8)
 	OVERLOAD_END
 
 	OVERLOAD_BEGIN(UNOP_NEGATIVE, "-")
-		OVERLOAD_ADD_UN(SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD_UN(SS_T_I4, SS_T_I4)
 		OVERLOAD_ADD_UN(SS_T_U4, SS_T_U4)
-		OVERLOAD_ADD_UN(SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD_UN(SS_T_I8, SS_T_I8)
 		OVERLOAD_ADD_UN(SS_T_U8, SS_T_U8)
-		OVERLOAD_ADD_UN(SS_T_FLOAT, SS_T_FLOAT)
-		OVERLOAD_ADD_UN(SS_T_DOUBLE, SS_T_DOUBLE)
+		OVERLOAD_ADD_UN(SS_T_F4, SS_T_F4)
+		OVERLOAD_ADD_UN(SS_T_F8, SS_T_F8)
 	OVERLOAD_END
 
 	OVERLOAD_BEGIN(UNOP_POSITIVE, "+")
-		OVERLOAD_ADD_UN(SS_T_S4, SS_T_S4)
+		OVERLOAD_ADD_UN(SS_T_I4, SS_T_I4)
 		OVERLOAD_ADD_UN(SS_T_U4, SS_T_U4)
-		OVERLOAD_ADD_UN(SS_T_S8, SS_T_S8)
+		OVERLOAD_ADD_UN(SS_T_I8, SS_T_I8)
 		OVERLOAD_ADD_UN(SS_T_U8, SS_T_U8)
-		OVERLOAD_ADD_UN(SS_T_FLOAT, SS_T_FLOAT)
-		OVERLOAD_ADD_UN(SS_T_DOUBLE, SS_T_DOUBLE)
+		OVERLOAD_ADD_UN(SS_T_F4, SS_T_F4)
+		OVERLOAD_ADD_UN(SS_T_F8, SS_T_F8)
 	OVERLOAD_END
 
 	default:
@@ -694,39 +864,246 @@ const OverloadVector& StaticChecker::GetUnaryOverloads(UnaryOp op) const
 }
 
 
-Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
+Expr* StaticChecker::CheckExprWithType(Expr* expr, const Type* desiredType, const ExprContext& ctx)
+{
+	SSAssert(expr);
+	SSAssert(desiredType);
+
+	Expr* xformed = CheckExpr(expr, ctx);
+	SSAssert(xformed);
+
+	if(xformed->IsA<ErrorExpr>())
+	{
+		// This has already failed.
+		return xformed;
+	}
+	else
+	{
+		const Type* xformType = xformed->GetResultType();
+		SSAssert(xformType);
+
+		if(xformType == desiredType)
+			return xformed;
+		else if(CanImplicitlyConvert(xformType, desiredType))
+		{
+			return new CastExpr(desiredType, xformed);
+		}
+		else
+		{
+			ReportError(expr, "Cannot implicitly convert type %s to %s", xformType->GetName().c_str(), desiredType->GetName().c_str());
+			return new ErrorExpr();
+		}
+	}
+}
+
+Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 {
 	Function* func = ctx.stmtCtx->func;
 	Scope* scope = ctx.stmtCtx->scope;
 
 	//---------------------------------------------------------------
-	// LITERAL EXPRESSIONS
+	// NULL LITERAL
 	//---------------------------------------------------------------
 	if(expr->IsA<NullLiteralExpr>())
 	{
 		expr->SetResultType(SS_T_NULLTYPE);
+		return expr;
 	}
+	//---------------------------------------------------------------
+	// BOOL LITERAL
+	//---------------------------------------------------------------
 	else if(expr->IsA<BoolLiteralExpr>())
 	{
 		expr->SetResultType(SS_T_BOOL);
+		return expr;
 	}
+	//---------------------------------------------------------------
+	// INT LITERAL
+	//---------------------------------------------------------------
 	else if(expr->IsA<IntLiteralExpr>())
 	{
 		// TODO: Check range, reparse, etc.?
-		expr->SetResultType(SS_T_S4);
+		expr->SetResultType(SS_T_I4);
+		return expr;
 	}
+	//---------------------------------------------------------------
+	// FLOAT LITERAL
+	//---------------------------------------------------------------
 	else if(expr->IsA<FloatLiteralExpr>())
 	{
+		// TODO: Double types
 		// TODO: Check range, reparse, etc.?
-		expr->SetResultType(SS_T_FLOAT);
+		expr->SetResultType(SS_T_F4);
+		return expr;
 	}
+	//---------------------------------------------------------------
+	// CHAR LITERAL
+	//---------------------------------------------------------------
 	else if(expr->IsA<CharLiteralExpr>())
 	{
 		expr->SetResultType(SS_T_CHAR);
+		return expr;
 	}
+	//---------------------------------------------------------------
+	// STRING LITERAL
+	//---------------------------------------------------------------
 	else if(expr->IsA<StringLiteralExpr>())
 	{
 		expr->SetResultType(SS_T_STRING);
+		return expr;
+	}
+	//---------------------------------------------------------------
+	// NAME EXPRESSION
+	//---------------------------------------------------------------
+	else if(expr->IsA<NameExpr>())
+	{
+		const String& name = dynamic_cast<NameExpr*>(expr)->GetIdentifier();
+
+		// Look for locals
+		const StatementContext* stmtCtx = ctx.stmtCtx;
+		SSAssert(stmtCtx);
+
+		while(stmtCtx != 0)
+		{
+			Node* node = stmtCtx->scope->Find(name);
+			if(node != 0)
+			{
+				SSAssert(node->IsA<Local>());
+				Local* local = dynamic_cast<Local*>(node);
+				LocalRefExpr* localRefExpr = new LocalRefExpr(local);
+				localRefExpr->SetResultType(local->GetType());
+				if(!local->IsConst())
+					localRefExpr->SetLValue(true);
+				return localRefExpr;
+			}
+
+			stmtCtx = stmtCtx->parent;
+		}
+
+		// Look for params
+		Node* node = func->GetScope()->Find(name);
+		if(node != 0)
+		{
+			SSAssert(node->IsA<Parameter>());
+			Parameter* param = dynamic_cast<Parameter*>(node);
+			ParamRefExpr* paramRefExpr = new ParamRefExpr(param);
+			paramRefExpr->SetResultType(param->GetType());
+			paramRefExpr->SetLValue(true);
+			return paramRefExpr;
+		}
+
+		// Look for other stuff
+		node = NameLookup::LookupName(name, func, expr);
+		if(node != 0)
+		{
+			// TODO: This will change with global vars & funcs
+			if(node->IsA<Variable>())
+			{
+				Variable* var = dynamic_cast<Variable*>(node);	
+
+				if(func->IsStatic() && !var->IsStatic())
+				{
+					ReportError(expr, "Variable %s cannot be used in a static context", var->GetFullName().c_str());
+					return new ErrorExpr();
+				}
+
+				VariableRefExpr* varRefExpr = new VariableRefExpr(new ThisExpr(), var);
+				SSAssert(var->GetType());
+				varRefExpr->SetResultType(var->GetType());
+				if(!var->IsConst())
+					varRefExpr->SetLValue(true);
+				return varRefExpr;
+			}
+			else if(node->IsA<Function>())
+			{
+				Function* func2 = dynamic_cast<Function*>(node);		
+
+				if(func->IsStatic() && !func2->IsStatic())
+				{
+					ReportError(expr, "Function %s cannot be used in a static context", func2->GetFullName().c_str());
+					return new ErrorExpr();
+				}
+
+				return new FunctionRefExpr(new ThisExpr( ), func2);
+			}
+			else if(node->IsA<Package>())
+			{
+				Package* pkg = dynamic_cast<Package*>(node);	
+				return new PackageRefExpr(pkg);
+			}
+			else if(node->IsA<Class>())
+			{
+				Class* cls = dynamic_cast<Class*>(node);	
+				return new ClassRefExpr(cls);
+			}
+			else
+			{
+				// Shouldn't happen. If it does, this needs to be changed.
+				SS_UNREACHABLE;
+				return 0;
+			}
+		}
+		else
+			// LookupName has already printed an error
+			return new ErrorExpr();
+	}
+	//---------------------------------------------------------------
+	// ASSIGN EXPRESSION
+	//---------------------------------------------------------------
+	else if(expr->IsA<AssignExpr>())
+	{
+		AssignExpr* assignExpr = dynamic_cast<AssignExpr*>(expr);
+
+		if(assignExpr->GetOp() != BINOP_NONE)
+		{
+			ReportError(expr, "Assignments besides are = not implemented yet");
+			return new ErrorExpr();
+		}
+
+		Expr* left = CheckExpr(assignExpr->GetLeft(), ctx);
+		Expr* right = CheckExpr(assignExpr->GetRight(), ctx);
+
+		SSAssert(left);
+		SSAssert(right);
+
+		// TODO: Maybe there's a better way to do error signaling than this
+		//		 Use NULL exprs?
+		if(left->IsA<ErrorExpr>() ||
+			right->IsA<ErrorExpr>())
+		{
+			return new ErrorExpr();
+		}
+		
+		if(!left->IsLValue())
+		{
+			ReportError(expr, "Target of assignment must be an lvalue");
+			return new ErrorExpr();
+		}
+
+		const Type* leftType = left->GetResultType();
+		const Type* rightType = right->GetResultType();
+		SSAssert(leftType);
+		SSAssert(rightType);
+
+		if(leftType == rightType)
+		{
+			assignExpr->SetLeft(left);
+			assignExpr->SetRight(right);
+			assignExpr->SetResultType(leftType);
+			return assignExpr;
+		}
+		else if(CanImplicitlyConvert(rightType, leftType))
+		{
+			assignExpr->SetLeft(left);
+			assignExpr->SetRight(new CastExpr(leftType, right));
+			assignExpr->SetResultType(leftType);
+			return assignExpr;
+		}
+		else
+		{
+			ReportError(expr, "Cannot implicitly convert type %s to %s", rightType->GetName().c_str(), leftType->GetName().c_str());
+			return new ErrorExpr();
+		}
 	}
 	//---------------------------------------------------------------
 	// BINARY EXPRESSION
@@ -735,8 +1112,8 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 	{
 		BinaryExpr* binExpr = dynamic_cast<BinaryExpr*>(expr);
 
-		Expr* left = CheckAndTransformExpr(binExpr->GetLeft(), ctx);
-		Expr* right = CheckAndTransformExpr(binExpr->GetRight(), ctx);
+		Expr* left = CheckExpr(binExpr->GetLeft(), ctx);
+		Expr* right = CheckExpr(binExpr->GetRight(), ctx);
 		SSAssert(left);
 		SSAssert(right);
 
@@ -771,7 +1148,7 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 			if(resultCode == OR_NO_MATCH)
 			{
 				ReportError(expr, 
-							"Operator %s cannot accept operators of types %s, %s",
+							"Operator %s cannot accept operands of types %s, %s",
 							binExpr->GetOpName().c_str(),
 							leftType->GetName().c_str(),
 							rightType->GetName().c_str());
@@ -781,7 +1158,7 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 			{
 				// TODO: Show possibilities
 				ReportError(expr, 
-							"Operator %s cannot accept operators of types %s, %s due to ambiguity",
+							"Operator %s cannot accept operands of types %s, %s due to ambiguity",
 							binExpr->GetOpName().c_str(),
 							leftType->GetName().c_str(),
 							rightType->GetName().c_str());
@@ -800,12 +1177,16 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 					CastExpr* cast = new CastExpr(match->types[0], left);
 					binExpr->SetLeft(cast);
 				}
+				else
+					binExpr->SetLeft(left);
 
 				if(match->types[1] != rightType)
 				{
 					CastExpr* cast = new CastExpr(match->types[1], right);
 					binExpr->SetRight(cast);
 				}
+				else
+					binExpr->SetRight(right);
 
 				Type* returnType = reinterpret_cast<Type*>(match->userData);
 				expr->SetResultType(returnType);
@@ -814,13 +1195,231 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 		}
 	}
 	//---------------------------------------------------------------
-	// UNARY EXPRESSION EXPRESSION
+	// CALL EXPRESSION
+	//---------------------------------------------------------------
+	else if(expr->IsA<CallExpr>())
+	{
+		// TODO: Overloads
+
+		CallExpr* callExpr = dynamic_cast<CallExpr*>(expr);
+		Expr* left = CheckExpr(callExpr->GetLeft( ), ctx);
+		SSAssert(left);
+
+		if(left->IsA<ErrorExpr>())
+			return new ErrorExpr();
+
+		// TODO: Handle calling classes, for construction
+		if(!left->IsA<FunctionRefExpr>())
+		{
+			ReportError(expr, "Only functions can be called");
+			return new ErrorExpr();
+		}
+
+		FunctionRefExpr* funcRefExpr = dynamic_cast<FunctionRefExpr*>(left);
+		Function* func = funcRefExpr->GetFunction();
+		SSAssert(func != 0);
+
+		if(func->GetParameterCount() != callExpr->GetParameterCount())
+		{
+			ReportError(expr, "Function %s takes %d parameters, %d provided",
+							func->GetFullName().c_str(),
+							func->GetParameterCount(),
+							callExpr->GetParameterCount());
+			return new ErrorExpr();
+		}
+
+		bool errored = false;
+
+		FunctionCallExpr* funcCallExpr = new FunctionCallExpr(funcRefExpr->GetLeft(), func);
+
+		for(int i=0; i < callExpr->GetParameterCount(); ++i)
+		{
+			Expr* paramOriginal = callExpr->GetParameter(i);
+			SSAssert(paramOriginal != 0);
+			Expr* paramXformed = CheckExpr(paramOriginal, ctx);
+			SSAssert(paramXformed);
+			SSAssert(paramXformed->GetResultType() != 0);
+			SSAssert(func->GetParameter(i)->GetType() != 0);
+
+			const Type* paramType = func->GetParameter(i)->GetType();
+			const Type* providedValueType = paramXformed->GetResultType();
+
+			if(!CanImplicitlyConvert(providedValueType, paramType))
+			{
+				ReportError(paramOriginal, "Function %s takes %s for parameter %d, given %s",
+							func->GetFullName().c_str(),
+							paramType->GetName( ),
+							i+1,
+							providedValueType->GetName( ));
+				errored = true;
+				continue;
+			}
+
+			Expr* paramFinal = paramXformed;
+			if(paramType != providedValueType)
+			{
+				paramFinal = new CastExpr(paramType, paramFinal);
+			}
+
+			funcCallExpr->AddParameter(paramFinal);
+		}
+		
+		if(errored)
+			return new ErrorExpr();
+
+		funcCallExpr->SetResultType( func->GetReturnType() );
+		return funcCallExpr;
+	}
+	//---------------------------------------------------------------
+	// CAST EXPRESSION
+	//---------------------------------------------------------------
+	else if(expr->IsA<CastExpr>())
+	{
+		CastExpr* castExpr = dynamic_cast<CastExpr*>(expr);
+		Expr* right = CheckExpr(castExpr->GetRight(), ctx);
+		SSAssert(right != 0);
+
+		if(right->IsA<ErrorExpr>())
+			return new ErrorExpr();
+
+		if(castExpr->GetType() == 0)
+		{
+			SSAssert(castExpr->GetTypeExpr() != 0);
+
+			// Look up the type
+			Type* typ = TypeLookup::LookupType(castExpr->GetTypeExpr(), func);
+			if(!typ)
+				return new ErrorExpr();
+
+			castExpr->SetType(typ);
+		}
+
+		if(castExpr->GetType() == right->GetResultType())
+		{
+			return castExpr->GetRight();
+		}
+		else if(CanExplicitlyConvert(right->GetResultType(), castExpr->GetType()))
+		{
+			castExpr->SetResultType(castExpr->GetType());
+			return castExpr;
+		}
+		else
+		{
+			ReportError(castExpr, "Cannot convert from %s to %s", castExpr->GetType()->GetName().c_str(), right->GetResultType()->GetName());
+			return new ErrorExpr();
+		}
+	}
+	//---------------------------------------------------------------
+	// TERNARY EXPRESSION
+	//---------------------------------------------------------------
+	else if(expr->IsA<TernaryExpr>())
+	{
+		TernaryExpr* ternExpr = dynamic_cast<TernaryExpr*>(expr);
+
+		Expr* cond = CheckExpr(ternExpr->GetCondition(), ctx);
+		Expr* ifTrue = CheckExpr(ternExpr->GetTrueExpr(), ctx);
+		Expr* ifFalse = CheckExpr(ternExpr->GetFalseExpr(), ctx);
+
+		SSAssert(cond);
+		SSAssert(ifTrue);
+		SSAssert(ifFalse);
+
+		// TODO: Maybe break this up so independent errors can get reported better? I dunno.
+		// e.g., ifFalse is wrong, but cond also doesn't convert to bool, etc.
+		if(cond->IsA<ErrorExpr>() ||
+			ifTrue->IsA<ErrorExpr>() ||
+			ifFalse->IsA<ErrorExpr>())
+			return new ErrorExpr();
+
+		const Type* condType = cond->GetResultType();
+		const Type* ifTrueType = ifTrue->GetResultType();
+		const Type* ifFalseType = ifFalse->GetResultType();
+
+		SSAssert(condType);
+		SSAssert(ifTrueType);
+		SSAssert(ifFalseType);
+
+		if(condType == SS_T_BOOL)
+		{
+			// Great
+		}
+		else if(CanImplicitlyConvert(condType, SS_T_BOOL))
+		{
+			cond = new CastExpr(SS_T_BOOL, cond);
+		}
+		else
+		{
+			ReportError(expr, "Cannot convert from type %s to bool", condType->GetName().c_str());
+			return new ErrorExpr();
+		}
+
+		if(ifTrueType == ifFalseType)
+		{
+			ternExpr->SetResultType(ifTrueType);
+			return ternExpr;
+		}
+		else
+		{
+			bool canConvertToTrue = CanImplicitlyConvert(ifFalseType, ifTrueType);
+			bool canConvertToFalse = CanImplicitlyConvert(ifTrueType, ifFalseType);
+
+			if(canConvertToTrue && !canConvertToFalse)
+			{
+				ternExpr->SetResultType(ifTrueType);
+				ternExpr->SetFalseExpr(new CastExpr(ifTrueType, ifFalse));
+				return ternExpr;
+			}
+			else if(canConvertToFalse && !canConvertToTrue)
+			{
+				ternExpr->SetResultType(ifFalseType);
+				ternExpr->SetTrueExpr(new CastExpr(ifFalseType, ifTrue));
+				return ternExpr;
+			}
+			else if(canConvertToTrue && canConvertToFalse)
+			{
+				ReportError(expr, "Ternary expression with types %s, %s has an ambiguous return value",
+									ifTrueType->GetName().c_str(),
+									ifFalseType->GetName().c_str());
+				return new ErrorExpr();
+			} 
+			else // Neither work
+			{
+				ReportError(expr, "Cannot use types %s, %s for true/false branches of ternary expression, neither can implicitly convert to the other",
+									ifTrueType->GetName().c_str(),
+									ifFalseType->GetName().c_str());
+				return new ErrorExpr();
+			}
+		}
+	}
+	//---------------------------------------------------------------
+	// THIS EXPRESSION
+	//---------------------------------------------------------------
+	else if(expr->IsA<ThisExpr>())
+	{
+		if(func->IsStatic( ))
+		{
+			ReportError(expr, "Cannot use 'this' in a static function context");
+			return new ErrorExpr();
+		}
+		else
+		{
+			SSAssert(func->GetParent() != 0);
+			SSAssert(func->GetParent()->IsA<Class>());
+			Class* cls = dynamic_cast<Class*>(func->GetParent());
+			Type* type = cls->GetType();
+			SSAssert(type != 0);
+			expr->SetResultType(type);
+			return expr;
+		}
+	}
+	//---------------------------------------------------------------
+	// UNARY EXPRESSION
 	//---------------------------------------------------------------
 	else if(expr->IsA<UnaryExpr>())
 	{
 		UnaryExpr* unExpr = dynamic_cast<UnaryExpr*>(expr);
 
-		Expr* operand = CheckAndTransformExpr(unExpr->GetOperand(), ctx);
+		Expr* operand = CheckExpr(unExpr->GetOperand(), ctx);
 		SSAssert(operand);
 
 		if(operand->IsA<ErrorExpr>())
@@ -832,6 +1431,7 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 		SSAssert(operandType != 0);
 
 		if(unExpr->GetOp() == UNOP_LOG_NOT ||
+			unExpr->GetOp() == UNOP_COMPLEMENT ||
 			unExpr->GetOp() == UNOP_NEGATIVE ||
 			unExpr->GetOp() == UNOP_POSITIVE)
 		{
@@ -844,7 +1444,7 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 			if(resultCode == OR_NO_MATCH)
 			{
 				ReportError(expr, 
-							"Operator %s cannot accept operator of type %s",
+							"Operator %s cannot accept operand of type %s",
 							unExpr->GetOpName().c_str(),
 							operandType->GetName().c_str());
 				return new ErrorExpr();
@@ -853,7 +1453,7 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 			{
 				// TODO: Show possibilities
 				ReportError(expr, 
-							"Operator %s cannot accept operator of type %s due to ambiguity",
+							"Operator %s cannot accept operand of type %s due to ambiguity",
 							unExpr->GetOpName().c_str(),
 							operandType->GetName().c_str());
 				return new ErrorExpr();
@@ -865,7 +1465,7 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 
 				const OverloadCandidate* const match = resultOverloads[0];
 
-				// Stitch up params with casts if necessary
+				// Stitch up params with casts if necessary (we may need to do something smarter here)
 				if(match->types[0] != operandType)
 				{
 					CastExpr* cast = new CastExpr(match->types[0], operand);
@@ -877,10 +1477,44 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 				return expr;
 			}
 		}
+		else if(unExpr->GetOp() == UNOP_PRE_INC ||
+				unExpr->GetOp() == UNOP_PRE_DEC ||
+				unExpr->GetOp() == UNOP_POST_INC ||
+				unExpr->GetOp() == UNOP_POST_DEC)
+		{
+			if(!operand->IsLValue())
+			{
+				ReportError(unExpr, "%s operator operand is not an lvalue", unExpr->GetOpName().c_str());
+				return new ErrorExpr();
+			}
+
+			const Type* operandType = operand->GetResultType();
+			SSAssert(operandType);
+			if(operandType == SS_T_U1 ||
+				operandType == SS_T_I1 ||
+				operandType == SS_T_U2 ||
+				operandType == SS_T_I2 ||
+				operandType == SS_T_U4 ||
+				operandType == SS_T_I4 ||
+				operandType == SS_T_U8 ||
+				operandType == SS_T_I8 ||
+				operandType == SS_T_F4 ||
+				operandType == SS_T_F8)
+			{
+				return unExpr;
+			}
+			else
+			{
+				ReportError(unExpr, "Cannot apply %s operator to operand of type %s",
+							unExpr->GetOpName().c_str(),
+							operandType->GetName().c_str());
+				return new ErrorExpr();
+			}
+		}
 		else
 		{
-			ReportError(expr, "Temporarily unsupported unary expr type");
-			return new ErrorExpr();
+			SS_UNREACHABLE;
+			return 0;
 		}
 	}
 	else
@@ -892,7 +1526,7 @@ Expr* StaticChecker::CheckAndTransformExpr(Expr* expr, const ExprContext& ctx)
 }
 
 // Debug dump of an expr to check that it's processing correctly
-// TODO: Put this into Expr::Dump()!
+// TODO: handle transform exprs
 String StaticChecker::DumpExpr(Expr* expr) const
 {
 	if(expr == 0)
@@ -945,7 +1579,9 @@ String StaticChecker::DumpExpr(Expr* expr) const
 	else if(expr->IsA<IntLiteralExpr>())
 	{
 		IntLiteralExpr* castedExpr = dynamic_cast<IntLiteralExpr*>(expr);
-		return castedExpr->GetValue();
+		char buf[32];
+		sprintf(buf, "%d", castedExpr->GetValue());
+		return buf;
 	}
 	else if(expr->IsA<FloatLiteralExpr>())
 	{
@@ -971,7 +1607,7 @@ String StaticChecker::DumpExpr(Expr* expr) const
 	else if(expr->IsA<NameExpr>())
 	{
 		NameExpr* nameExpr = dynamic_cast<NameExpr*>(expr);
-		return nameExpr->GetIdentifier();
+		return "'"+nameExpr->GetIdentifier()+"'";
 	}
 	else if(expr->IsA<TernaryExpr>())
 	{
@@ -979,6 +1615,10 @@ String StaticChecker::DumpExpr(Expr* expr) const
 		return "ternary(" + DumpExpr(ternaryExpr->GetCondition()) + ", " + 
 							DumpExpr(ternaryExpr->GetTrueExpr()) + ", " + 
 							DumpExpr(ternaryExpr->GetFalseExpr()) + ")";
+	}
+	else if(expr->IsA<ThisExpr>())
+	{
+		return "this";
 	}
 	else if(expr->IsA<UnaryExpr>())
 	{

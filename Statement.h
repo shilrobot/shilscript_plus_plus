@@ -3,6 +3,7 @@
 
 #include "Node.h"
 #include "Expr.h"
+#include "TypeExpr.h"
 
 namespace SS {
 
@@ -222,6 +223,44 @@ private:
 	Expr* m_listExpr;
 	Statement* m_body;
 };
+
+class LocalDef : public Node
+{
+public:
+	SS_CLASS(LocalDef, "LocalDef", Node);
+
+	LocalDef( const String& name, Expr* initExpr) : m_initExpr(initExpr), m_local(0)
+	{
+		SetName(name);
+	}
+
+	SS_GETSET(Expr*, InitExpr, m_initExpr);
+	SS_GETSET(Local*, Local, m_local);
+
+private:
+	Local*	m_local;
+	Expr*	m_initExpr;
+};
+
+class LocalDefStatement : public Statement
+{
+public:
+	SS_CLASS(LocalDefStatement, "LocalDefStatement", Statement);
+
+	LocalDefStatement( TypeExpr* typeExpr ) : m_typeExpr(typeExpr), m_const(false), m_static(false) {}
+
+	SS_GETSET(TypeExpr*, TypeExpr, m_typeExpr);
+	SS_GETSET_BOOL(IsConst, SetConst, m_const);
+	SS_GETSET_BOOL(IsStatic, SetStatic, m_static);
+	SS_ADD(LocalDef*, AddDef, m_defs);
+	SS_INDEX(LocalDef*, Def, m_defs);
+private:
+	TypeExpr*	m_typeExpr;
+	bool	m_const;
+	bool	m_static;
+	std::vector<LocalDef*>	m_defs;
+};
+
 
 // TODO: foreach
 

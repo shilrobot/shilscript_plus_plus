@@ -36,13 +36,13 @@ enum BasicTypeId
 	BT_VOID,
 	BT_BOOL,
 	BT_U1,
-	BT_S1,
+	BT_I1,
 	BT_U2,
-	BT_S2,
+	BT_I2,
 	BT_U4,
-	BT_S4,
+	BT_I4,
 	BT_U8,
-	BT_S8,
+	BT_I8,
 	BT_FLOAT,
 	BT_DOUBLE,
 	BT_CHAR,
@@ -67,13 +67,13 @@ public:
 			case BT_VOID: return "void";
 			case BT_BOOL: return "bool";
 			case BT_U1: return "byte";
-			case BT_S1: return "sbyte";
+			case BT_I1: return "sbyte";
 			case BT_U2: return "ushort";
-			case BT_S2: return "short";
+			case BT_I2: return "short";
 			case BT_U4: return "uint";
-			case BT_S4: return "int";
+			case BT_I4: return "int";
 			case BT_U8: return "ulong";
-			case BT_S8: return "long";
+			case BT_I8: return "long";
 			case BT_FLOAT: return "float";
 			case BT_DOUBLE: return "double";
 			case BT_CHAR: return "char";

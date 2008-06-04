@@ -1,5 +1,5 @@
-#ifndef SS_LOCATABLE_H
-#define SS_LOCATABLE_H
+#ifndef SS_NODE_H
+#define SS_NODE_H
 
 #include "Prereqs.h"
 #include "Base.h"
@@ -89,4 +89,4 @@ private:
 
 }
 
-#endif // SS_LOCATABLE_H
+#endif // SS_NODE_H
