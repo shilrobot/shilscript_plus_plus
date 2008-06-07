@@ -588,6 +588,14 @@
 			>
 		</File>
 		<File
+			RelativePath=".\StaticChecker_Exprs.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\StaticChecker_Statements.cpp"
+			>
+		</File>
+		<File
 			RelativePath=".\TypeConversion.cpp"
 			>
 		</File>

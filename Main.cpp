@@ -35,6 +35,6 @@ void SSParser::reportWarning(const std::string& s)
 int main(int argc, char** argv)
 {
 	int retval = SS::SSCMain(argc, argv);
-	SS::Base::DumpInstances();
+	//SS::Base::DumpInstances();
 	return retval;
 }

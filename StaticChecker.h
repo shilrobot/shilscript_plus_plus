@@ -66,7 +66,9 @@ private:
 	// Third phase: Static checking of function contents
 	void CheckFunctionBody(Function* func);
 	Expr* CheckExpr(Expr* expr, const ExprContext& ctx);
-	Expr* CheckExprWithType(Expr* expr, const Type* desiredType, const ExprContext& ctx);
+	Expr* CheckLValue(Expr* expr, const ExprContext& ctx);
+	Expr* CheckRValue(Expr* expr, const ExprContext& ctx);
+	Expr* CheckRValueWithType(Expr* expr, const Type* desiredType, const ExprContext& ctx);
 	String DumpExpr(Expr* expr) const;
 	const OverloadVector& GetBinaryOverloads(BinaryOp op) const;
 	const OverloadVector& GetUnaryOverloads(UnaryOp op) const;

@@ -56,8 +56,14 @@ void CodeGen::EmitStatement(const Statement* stmt, const CodeGenContext& ctx)
 	{
 		const ExprStatement* exprStmt = static_cast<const ExprStatement*>(stmt);
 		EmitExpr(exprStmt->GetExpr(), ctx);
-		if(exprStmt->GetExpr()->GetResultType() != SS_T_VOID)
-			m_code->pop();
+		if(exprStmt->GetExpr()->IsRValue())
+		{
+			// TODO: Better way of doing this...
+			if(exprStmt->GetExpr()->IsA<AssignExpr>() && !exprStmt->GetExpr()->IsValueUsed())
+				;
+			else
+				m_code->pop();
+		}
 	}
 	else if(stmt->IsA<BlockStatement>())
 	{
@@ -176,7 +182,8 @@ void CodeGen::EmitExpr(const Expr* expr, const CodeGenContext& ctx)
 				SSAssert(varRefExpr->GetLeft() == 0);
 
 				EmitExpr(right, ctx);
-				m_code->dup();
+				if(assignExpr->IsValueUsed())
+					m_code->dup();
 				m_code->store_static(varRefExpr->GetVariable());
 			}
 			else
@@ -187,7 +194,8 @@ void CodeGen::EmitExpr(const Expr* expr, const CodeGenContext& ctx)
 
 				// dup_shift modifies the stack as such:
 				// {a,b} -> {b,a,b}
-				m_code->dup_shift();
+				if(assignExpr->IsValueUsed())
+					m_code->dup_shift();
 
 				m_code->store_field(varRefExpr->GetVariable());
 			}
@@ -197,7 +205,8 @@ void CodeGen::EmitExpr(const Expr* expr, const CodeGenContext& ctx)
 			const ParamRefExpr* paramRefExpr = static_cast<const ParamRefExpr*>(left);
 
 			EmitExpr(right, ctx);
-			m_code->dup();
+			if(assignExpr->IsValueUsed())
+				m_code->dup();
 			m_code->store_arg(paramRefExpr->GetParameter()->GetID());
 		}
 		else if(left->IsA<LocalRefExpr>())
@@ -205,7 +214,8 @@ void CodeGen::EmitExpr(const Expr* expr, const CodeGenContext& ctx)
 			const LocalRefExpr* localRefExpr = static_cast<const LocalRefExpr*>(left);
 			
 			EmitExpr(right, ctx);
-			m_code->dup();
+			if(assignExpr->IsValueUsed())
+				m_code->dup();
 			m_code->store_local(localRefExpr->GetLocal()->GetID());
 		}
 		else

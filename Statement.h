@@ -7,6 +7,8 @@
 
 namespace SS {
 
+class Local;
+
 class Statement : public Node
 {
 public:

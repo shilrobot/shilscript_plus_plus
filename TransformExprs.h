@@ -26,6 +26,7 @@ public:
 	
 	PackageRefExpr(Package* pkg) : m_pkg(pkg)
 	{
+		SetRValue(false);
 	}
 
 	SS_GETSET(Package*, Package, m_pkg);
@@ -40,6 +41,7 @@ public:
 	
 	ClassRefExpr(Class* cls) : m_cls(cls)
 	{
+		SetRValue(false);
 	}
 
 	SS_GETSET(Class*, Class, m_cls);
@@ -98,6 +100,7 @@ public:
 
 	FunctionRefExpr(Expr* left, Function* func) : m_left(left), m_func(func)
 	{
+		SetRValue(false);
 	}
 
 	SS_GETSET(Expr*, Left, m_left);
@@ -113,7 +116,9 @@ class SS_EXPORT FunctionCallExpr : public Expr
 public:
 	SS_CLASS(CallExpr, "FunctionCallExpr", Expr);
 
-	FunctionCallExpr(Expr* left, Function* func) : m_left(left), m_func(func) {}
+	FunctionCallExpr(Expr* left, Function* func) : m_left(left), m_func(func)
+	{
+	}
 
 	virtual ~FunctionCallExpr() { delete m_left; }
 
