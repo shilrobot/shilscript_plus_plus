@@ -11,6 +11,10 @@ class Class;
 class Expr;
 class Statement;
 class Local;
+class Code;
+
+const int SS_MAX_PARAMETERS = 255;
+const int SS_MAX_LOCALS = 65535;
 
 class SS_EXPORT Parameter : public Node
 {
@@ -18,7 +22,8 @@ public:
 	SS_CLASS(Parameter, "Parameter", Node)
 
 	Parameter() : m_typeExpr(0), m_type(0), m_id(-1) {}
-
+	virtual ~Parameter();
+	
 	SS_GETSET(TypeExpr*, TypeExpr, m_typeExpr);
 	SS_GETSET(Type*, Type, m_type);
 	SS_GETSET(int, ID, m_id);
@@ -57,6 +62,7 @@ public:
 	SS_GETSET_BOOL(IsStatic, SetStatic, m_static);
 	SS_GETSET_BOOL(IsVirtual, SetVirtual, m_virtual);
 	SS_GETSET_BOOL(IsSealed, SetSealed, m_sealed);
+	SS_GETSET(Code*, Code, m_code);
 
 	SS_NODE_TYPE_NAME("function");
 
@@ -75,8 +81,7 @@ private:
 
 	std::vector<Local*> m_locals;
 
-	// TODO: Code, locals, ...
-	// TODO: more flags?
+	Code*		m_code;
 };
 
 }

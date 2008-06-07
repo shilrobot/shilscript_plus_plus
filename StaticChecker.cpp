@@ -305,6 +305,12 @@ bool StaticChecker::CheckFunction(Function* func)
 		return false;
 	}
 
+	if(func->GetParameterCount() > SS_MAX_PARAMETERS)
+	{
+		ReportError(func, "Function has too many parameters. Maximum is %d", SS_MAX_PARAMETERS);
+		return false;
+	}
+
 	// Now, we have to check params
 	bool paramsFailed = false;
 	int id = 0;
@@ -627,6 +633,9 @@ void StaticChecker::CheckStatement(Statement* stmt, const StatementContext& ctx)
 				scope->Add(local);
 
 				def->SetLocal(local);
+
+				if(ctx.func->GetLocalCount() == SS_MAX_LOCALS)
+					ReportError(ctx.func, "Function has too many locals. Maximum is %d", SS_MAX_LOCALS);
 			}
 		}
 	}
@@ -974,6 +983,7 @@ Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 				localRefExpr->SetResultType(local->GetType());
 				if(!local->IsConst())
 					localRefExpr->SetLValue(true);
+				delete expr;
 				return localRefExpr;
 			}
 
@@ -989,6 +999,7 @@ Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 			ParamRefExpr* paramRefExpr = new ParamRefExpr(param);
 			paramRefExpr->SetResultType(param->GetType());
 			paramRefExpr->SetLValue(true);
+			delete expr;
 			return paramRefExpr;
 		}
 
@@ -1004,6 +1015,7 @@ Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 				if(func->IsStatic() && !var->IsStatic())
 				{
 					ReportError(expr, "Variable %s cannot be used in a static context", var->GetFullName().c_str());
+					delete expr;
 					return new ErrorExpr();
 				}
 
@@ -1012,6 +1024,10 @@ Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 				varRefExpr->SetResultType(var->GetType());
 				if(!var->IsConst())
 					varRefExpr->SetLValue(true);
+				if(var->IsStatic() || var->IsConst())
+					varRefExpr->SetLeft(0);
+				else
+					varRefExpr->SetLeft(new ThisExpr());
 				return varRefExpr;
 			}
 			else if(node->IsA<Function>())
@@ -1021,19 +1037,27 @@ Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 				if(func->IsStatic() && !func2->IsStatic())
 				{
 					ReportError(expr, "Function %s cannot be used in a static context", func2->GetFullName().c_str());
+					delete expr;
 					return new ErrorExpr();
 				}
 
-				return new FunctionRefExpr(new ThisExpr( ), func2);
+				delete expr;
+
+				if(func2->IsStatic())
+					return new FunctionRefExpr(0, func2);
+				else
+					return new FunctionRefExpr(new ThisExpr( ), func2);
 			}
 			else if(node->IsA<Package>())
 			{
 				Package* pkg = dynamic_cast<Package*>(node);	
+				delete expr;
 				return new PackageRefExpr(pkg);
 			}
 			else if(node->IsA<Class>())
 			{
 				Class* cls = dynamic_cast<Class*>(node);	
+				delete expr;
 				return new ClassRefExpr(cls);
 			}
 			else
@@ -1044,8 +1068,11 @@ Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 			}
 		}
 		else
+		{
+			delete expr;
 			// LookupName has already printed an error
 			return new ErrorExpr();
+		}
 	}
 	//---------------------------------------------------------------
 	// ASSIGN EXPRESSION
@@ -1057,6 +1084,7 @@ Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 		if(assignExpr->GetOp() != BINOP_NONE)
 		{
 			ReportError(expr, "Assignments besides are = not implemented yet");
+			delete expr;
 			return new ErrorExpr();
 		}
 
@@ -1071,12 +1099,14 @@ Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 		if(left->IsA<ErrorExpr>() ||
 			right->IsA<ErrorExpr>())
 		{
+			delete expr;
 			return new ErrorExpr();
 		}
 		
 		if(!left->IsLValue())
 		{
 			ReportError(expr, "Target of assignment must be an lvalue");
+			delete expr;
 			return new ErrorExpr();
 		}
 
@@ -1101,6 +1131,7 @@ Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 		}
 		else
 		{
+			delete expr;
 			ReportError(expr, "Cannot implicitly convert type %s to %s", rightType->GetName().c_str(), leftType->GetName().c_str());
 			return new ErrorExpr();
 		}
@@ -1122,6 +1153,7 @@ Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 		if(left->IsA<ErrorExpr>() ||
 			right->IsA<ErrorExpr>())
 		{
+			delete expr;
 			return new ErrorExpr();
 		}
 
@@ -1133,6 +1165,7 @@ Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 		if(binExpr->GetOp() == BINOP_EQ ||
 			binExpr->GetOp() == BINOP_NE)
 		{
+			delete expr;
 			ReportError(expr, "== and != are temporarily unsupported");
 			return new ErrorExpr();
 		}
@@ -1152,6 +1185,7 @@ Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 							binExpr->GetOpName().c_str(),
 							leftType->GetName().c_str(),
 							rightType->GetName().c_str());
+				delete expr;
 				return new ErrorExpr();
 			}
 			else if(resultCode == OR_AMBIGUOUS)
@@ -1162,6 +1196,7 @@ Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 							binExpr->GetOpName().c_str(),
 							leftType->GetName().c_str(),
 							rightType->GetName().c_str());
+				delete expr;
 				return new ErrorExpr();
 			}
 			else //if(resultCode == OR_SINGLE_MATCH)
@@ -1294,13 +1329,15 @@ Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 			castExpr->SetType(typ);
 		}
 
+
 		if(castExpr->GetType() == right->GetResultType())
 		{
-			return castExpr->GetRight();
+			return right;
 		}
 		else if(CanExplicitlyConvert(right->GetResultType(), castExpr->GetType()))
 		{
 			castExpr->SetResultType(castExpr->GetType());
+			castExpr->SetRight(right);
 			return castExpr;
 		}
 		else
@@ -1366,6 +1403,7 @@ Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 			if(canConvertToTrue && !canConvertToFalse)
 			{
 				ternExpr->SetResultType(ifTrueType);
+				ternExpr->SetTrueExpr(ifTrue);
 				ternExpr->SetFalseExpr(new CastExpr(ifTrueType, ifFalse));
 				return ternExpr;
 			}
@@ -1373,6 +1411,7 @@ Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 			{
 				ternExpr->SetResultType(ifFalseType);
 				ternExpr->SetTrueExpr(new CastExpr(ifFalseType, ifTrue));
+				ternExpr->SetFalseExpr(ifFalse);
 				return ternExpr;
 			}
 			else if(canConvertToTrue && canConvertToFalse)
@@ -1471,6 +1510,8 @@ Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 					CastExpr* cast = new CastExpr(match->types[0], operand);
 					unExpr->SetOperand(cast);
 				}
+				else
+					unExpr->SetOperand(operand);
 
 				Type* returnType = reinterpret_cast<Type*>(match->userData);
 				expr->SetResultType(returnType);
@@ -1501,6 +1542,7 @@ Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 				operandType == SS_T_F4 ||
 				operandType == SS_T_F8)
 			{
+				unExpr->SetOperand(operand);
 				return unExpr;
 			}
 			else

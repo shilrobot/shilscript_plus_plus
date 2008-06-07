@@ -76,6 +76,19 @@ bool OverloadBetter(const TypeVector& types, const OverloadCandidate* a, const O
 		return false;
 }
 
+static String OverloadToString( const OverloadCandidate* cand )
+{
+	String buf = "(";
+	for(size_t k = 0; k < cand->types.size(); ++k)
+	{
+		if(k != 0)
+			buf += ", ";
+		buf += cand->types[k]->GetName();
+	}
+	buf += ")";
+	return buf;
+}
+
 // TODO: We'll has to raise specific "cannot convert type" errors if we don't match any!
 extern OverloadResolveResult ResolveOverloads(const TypeVector& types,
 												const OverloadVector& candidates,
@@ -83,12 +96,26 @@ extern OverloadResolveResult ResolveOverloads(const TypeVector& types,
 {
 	OverloadVector matchingSigs;
 
+	/*std::string buf;
+	for(size_t n = 0; n < types.size(); ++n)
+	{
+		if(n != 0)
+			buf += ", ";
+		buf += types[n]->GetName();
+	}
+	printf("Resolving overload for (%s)\n", buf.c_str());
+
+	for(size_t n = 0; n < candidates.size(); ++n)
+		printf("Candidate %d: %s\n", n, OverloadToString(candidates[n]).c_str());*/
+	
+
 	// First, cull out any overloads that can't possibly match the signature of the function.
 	// Also, if we run into an exact match, return that!
 	for(size_t n = 0; n < candidates.size(); ++n)
 	{
 		if(OverloadExactlyMatchesTypes(types, candidates[n]))
 		{
+			//printf("Candidate %d exactly matches\n", n);
 			result.push_back(candidates[n]);
 			return OR_SINGLE_MATCH;
 		}
@@ -101,12 +128,19 @@ extern OverloadResolveResult ResolveOverloads(const TypeVector& types,
 	if(matchingSigs.size() == 1)
 	{
 		result.push_back(matchingSigs[0]);
+		//printf("Got just one left, we have a winner\n");
 		return OR_SINGLE_MATCH;
 	}
 
 	// If none left, we have no matches!
 	if(matchingSigs.size() == 0)
+	{
+		//printf("None left, we fail!\n");
 		return OR_NO_MATCH;
+	}
+	
+	/*for(size_t n = 0; n < matchingSigs.size(); ++n)
+		printf("Matching sig %d: %s\n", n, OverloadToString(matchingSigs[n]).c_str());*/
 
 	OverloadVector betterThanOthers;
 
@@ -119,9 +153,25 @@ extern OverloadResolveResult ResolveOverloads(const TypeVector& types,
 				continue;
 
 			if(OverloadBetter(types, candidates[i], candidates[j]))
-				betterThanOthers.push_back(candidates[i]);
+			{
+				betterThanOthers.push_back(matchingSigs[i]);
+				/*printf("%s > %s\n",
+						OverloadToString(matchingSigs[i]).c_str(),
+						OverloadToString(matchingSigs[j]).c_str());*/
+			}
+			else
+			{			
+				/*printf("%s <= %s\n",
+						OverloadToString(matchingSigs[i]).c_str(),
+						OverloadToString(matchingSigs[j]).c_str());*/
+			}
 		}
 	}
+
+	/*
+	for(size_t n = 0; n < betterThanOthers.size(); ++n)
+		printf("BetterThanOthers %d: %s\n", n, OverloadToString(betterThanOthers[n]).c_str());
+	*/
 
 	// No best overloads?
 	if(betterThanOthers.size() == 0)

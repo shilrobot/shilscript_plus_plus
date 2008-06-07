@@ -300,6 +300,7 @@ extern ConversionComparison CompareConversions(const Type* const src, const Type
 	if(src == b)
 		return CC_B_BETTER;
 
+	// TODO: Double-check these two
 	if(CanImplicitlyConvert(a,b) && !CanImplicitlyConvert(b,a))
 		return CC_A_BETTER;
 

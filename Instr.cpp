@@ -52,6 +52,18 @@ const char* GetOpcodeName(Opcode opcode)
 		SS_INSTRNAME(print)
 		SS_INSTRNAME(load_true)
 		SS_INSTRNAME(load_false)
+		SS_INSTRNAME(new)
+		SS_INSTRNAME(instanceof)
+		SS_INSTRNAME(load_null)
+		SS_INSTRNAME(load_this)
+		SS_INSTRNAME(load_field)
+		SS_INSTRNAME(store_field)
+		SS_INSTRNAME(load_static)
+		SS_INSTRNAME(store_static)
+		SS_INSTRNAME(call_method)
+		SS_INSTRNAME(call_static)
+		SS_INSTRNAME(load_const)
+		SS_INSTRNAME(dup_shift)
 	default:
 		SS_UNREACHABLE;
 		return "<Unknown Op>";

@@ -26,6 +26,7 @@ inc {a} -> {b} (Utility quick stuff)
 dec {a} -> {b} (Utility quick stuff)
 
 Logic (Are these necessary? -- Maybe if you do inv, and, or on bools this is what happens)
+NOTE: Actually these aren't even used since it just uses branching for short-circuiting! (except log_not)
 =====
 log_and {a, b} -> {c}
 log_or {a, b} -> {c}

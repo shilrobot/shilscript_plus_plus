@@ -32,57 +32,9 @@ void SSParser::reportWarning(const std::string& s)
 
 }
 
-using namespace SS;
-
-bool TestDriver(Package* pkg)
-{
-	pkg->SetName("Test");
-
-	std::ifstream infile("scripts/test.ss");
-	if(!infile)
-	{
-		ReportError("Unable to open test script");
-		return false;
-	}
-
-	try
-	{
-		SSLexer lexer(infile);
-		SSParser parser(lexer);
-
-		parser.translationUnit(pkg);
-	}
-	catch(antlr::ANTLRException& e)
-	{
-		ReportError(e.toString());
-		return false;
-	}
-
-	if(AnyErrors())
-		return false;
-
-	/*
-	bool result = pkg->Compile();
-	if(!result)
-		return false;
-	*/
-
-	StaticChecker checker(pkg);
-	if(!checker.Check())
-		return false;
-
-	return true;
-}
-
 int main(int argc, char** argv)
 {
-	/*
-	Package* pkg = new Package();
-	bool result = TestDriver(pkg);
-	ErrorReport();
-	delete pkg;
-	return result ? 0 : 1;
-	*/
-
-	return SSCMain(argc, argv);
+	int retval = SS::SSCMain(argc, argv);
+	SS::Base::DumpInstances();
+	return retval;
 }

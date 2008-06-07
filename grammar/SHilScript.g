@@ -137,11 +137,13 @@ classModifier[Class* cls]
 // TODO: Because funcsig is in a predicate, actions won't get executed!
 //		 So a lot of this null behavior is unnecessary.
 
-funcDef returns [Function* func = new Function()]
+funcDef returns [Function* func]
 	{
 		Statement* body = 0;
 	}
-	:	funcSig[func] (body=blockStmt | SEMI)
+	:
+	{ func = new Function(); }
+	funcSig[func] (body=blockStmt | SEMI)
 	{
 		func->SetBody(body);
 	}
@@ -190,13 +192,14 @@ paramList[Function* func]
 	|
 	;
 	
-param returns[Parameter* param = new Parameter()]
+param returns[Parameter* param = 0]
 	{
 		TypeExpr* typ;
 	}
 	:	typ=type pname:ID
 	
 		{
+			param = new Parameter();
 			SS_LOCATE(param, pname);
 			param->SetTypeExpr(typ);
 			param->SetName(pname->getText());
@@ -347,7 +350,7 @@ bitwiseXorExpr returns[Expr* expr = 0]
 	}
 	:	expr=bitwiseAndExpr
 		(
-			op:XOR right=bitwiseAndExpr
+			op:CARET right=bitwiseAndExpr
 			
 			{
 				expr = new BinaryExpr(BINOP_BIT_XOR, expr, right);

@@ -89,7 +89,7 @@ public:
 	// TODO: A lot of these will change
 	Instr* convert(const Type* type)
 	{
-		Instr* instr = new Instr(Op_store_arg);
+		Instr* instr = new Instr(Op_convert);
 		instr->SetArgCount(1);
 		instr->GetArg(0).SetType(type);
 		m_instructions.push_back(instr);
@@ -102,6 +102,16 @@ public:
 		instr->SetArgCount(2);
 		instr->GetArg(0).SetType(SS_T_I4);
 		instr->GetArg(1).SetI4(val);
+		m_instructions.push_back(instr);
+		return instr;
+	}
+
+	Instr* load_imm_f4(f4 val)
+	{
+		Instr* instr = new Instr(Op_load_imm);
+		instr->SetArgCount(2);
+		instr->GetArg(0).SetType(SS_T_F4);
+		instr->GetArg(1).SetF4(val);
 		m_instructions.push_back(instr);
 		return instr;
 	}
@@ -147,11 +157,81 @@ public:
 	Instr* pop() { return WriteSimple(Op_pop); }
 	Instr* swap() { return WriteSimple(Op_swap); }
 
-	Instr* brk() { return WriteSimple(Op_break); }
+	Instr* break_() { return WriteSimple(Op_break); }
 	Instr* print() { return WriteSimple(Op_print); }
 
 	Instr* load_true() { return WriteSimple(Op_load_true); }
 	Instr* load_false() { return WriteSimple(Op_load_false); }
+
+	Instr* new_() { return WriteSimple(Op_new); }
+	Instr* instanceof() { return WriteSimple(Op_instanceof); }
+	Instr* load_null() { return WriteSimple(Op_load_null); }
+	Instr* load_this() { return WriteSimple(Op_load_this); }
+
+	Instr* load_field(const Variable* var)
+	{
+		Instr* instr = new Instr(Op_load_field);
+		instr->SetArgCount(1);
+		instr->GetArg(0).SetVariable(var);
+		m_instructions.push_back(instr);
+		return instr;
+	}
+
+	Instr* store_field(const Variable* var)
+	{
+		Instr* instr = new Instr(Op_store_field);
+		instr->SetArgCount(1);
+		instr->GetArg(0).SetVariable(var);
+		m_instructions.push_back(instr);
+		return instr;
+	}
+
+	Instr* load_static(const Variable* var)
+	{
+		Instr* instr = new Instr(Op_load_static);
+		instr->SetArgCount(1);
+		instr->GetArg(0).SetVariable(var);
+		m_instructions.push_back(instr);
+		return instr;
+	}
+
+	Instr* store_static(const Variable* var)
+	{
+		Instr* instr = new Instr(Op_store_static);
+		instr->SetArgCount(1);
+		instr->GetArg(0).SetVariable(var);
+		m_instructions.push_back(instr);
+		return instr;
+	}
+
+	Instr* load_const(const Variable* var)
+	{
+		Instr* instr = new Instr(Op_load_const);
+		instr->SetArgCount(1);
+		instr->GetArg(0).SetVariable(var);
+		m_instructions.push_back(instr);
+		return instr;
+	}
+
+	Instr* call_method(const Function* func)
+	{
+		Instr* instr = new Instr(Op_call_method);
+		instr->SetArgCount(1);
+		instr->GetArg(0).SetFunction(func);
+		m_instructions.push_back(instr);
+		return instr;
+	}
+
+	Instr* call_static(const Function* func)
+	{
+		Instr* instr = new Instr(Op_call_static);
+		instr->SetArgCount(1);
+		instr->GetArg(0).SetFunction(func);
+		m_instructions.push_back(instr);
+		return instr;
+	}
+
+	Instr* dup_shift() { return WriteSimple(Op_dup_shift); }
 
 	// TODO: More...
 

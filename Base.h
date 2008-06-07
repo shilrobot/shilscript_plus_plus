@@ -13,8 +13,8 @@ public: \
 class SS_EXPORT Base
 {
 public:
-	Base() {}
-	virtual ~Base() {}
+	Base();
+	virtual ~Base();
 
 	virtual TypeInfo* DynamicType() const { return StaticType(); }
 
@@ -50,6 +50,16 @@ public:
 	{
 		return IsA(TypeOf<T>());
 	}
+
+	static void DumpInstances();
+
+private:
+	Base*	m_prev;
+	Base*	m_next;
+	int		m_magic;
+
+	static Base* s_head;
+	static Base* s_tail;
 };
 
 }

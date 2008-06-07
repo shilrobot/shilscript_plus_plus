@@ -11,23 +11,24 @@ namespace SS {
 void Code::Dump()
 {
 	printf("; %s\n", m_func->GetDesc().c_str());
-	printf("; Instrs: %d\n", m_instructions.size());
-	printf("; Args: %d\n", m_func->GetLocalCount());
+	printf("; Instrs=%d Args=%d Locals=%d Static=%s\n",
+			m_instructions.size(),
+			m_func->GetParameterCount(),
+			m_func->GetLocalCount(),
+			m_func->IsStatic() ? "yes" : "no");
 
 	for(int i=0; i<m_func->GetParameterCount(); ++i)
 	{
 		Parameter* param = m_func->GetParameter(i);
 		SSAssert(param != 0);
-		printf("; %d: %s '%s'\n", param->GetID(), param->GetType()->GetName().c_str(), param->GetName().c_str());
+		printf("; Arg %d: %s '%s'\n", param->GetID(), param->GetType()->GetName().c_str(), param->GetName().c_str());
 	}
-
-	printf("; Locals: %d\n", m_func->GetLocalCount());
 	
 	for(int i=0; i<m_func->GetLocalCount(); ++i)
 	{
 		Local* local = m_func->GetLocal(i);
 		SSAssert(local != 0);
-		printf("; %d: %s '%s'\n", local->GetID(), local->GetType()->GetName().c_str(), local->GetName().c_str());
+		printf("; Local %d: %s '%s'\n", local->GetID(), local->GetType()->GetName().c_str(), local->GetName().c_str());
 	}
 	printf("\n");
 
@@ -35,7 +36,7 @@ void Code::Dump()
 	{
 		printf("%4d: %s", i, GetOpcodeName((Opcode)m_instructions[i]->opcode));
 
-		for(int j=0; j<m_instructions[i]->args.size(); ++j)
+		for(int j=0; j<(int)m_instructions[i]->args.size(); ++j)
 		{
 			InstrArg& arg = m_instructions[i]->args[j];
 
@@ -74,10 +75,10 @@ void Code::Dump()
 				printf("xxx", arg.GetI8());
 				break;
 			case IAT_F4:
-				printf("%g", arg.GetF4());
+				printf("%f", arg.GetF4());
 				break;
 			case IAT_F8:
-				printf("%g", arg.GetF8());
+				printf("%f", arg.GetF8());
 				break;
 			case IAT_TYPE:
 				printf("<%s>", arg.GetType()->GetName( ).c_str());

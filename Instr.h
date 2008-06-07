@@ -52,6 +52,18 @@ enum Opcode
 	Op_print 		= 0x28,
 	Op_load_true	= 0x29,
 	Op_load_false	= 0x2A,
+	Op_new			= 0x2B,
+	Op_instanceof	= 0x2C,
+	Op_load_null	= 0x2D,
+	Op_load_this	= 0x2E,
+	Op_load_field	= 0x2F,
+	Op_store_field	= 0x30,
+	Op_load_static	= 0x31,
+	Op_store_static	= 0x32,
+	Op_call_method	= 0x33,
+	Op_call_static	= 0x34,
+	Op_load_const	= 0x35,
+	Op_dup_shift	= 0x36,
 };
 
 const char* GetOpcodeName(Opcode opcode);
@@ -143,14 +155,14 @@ struct Instr
 	InstrArg& GetArg(int i)
 	{
 		SSAssert(i >= 0);
-		SSAssert(i < args.size());
+		SSAssert(i < (int)args.size());
 		return args[i];
 	}
 
 	const InstrArg& GetArg(int i) const
 	{
 		SSAssert(i >= 0);
-		SSAssert(i < args.size());
+		SSAssert(i < (int)args.size());
 		return args[i];
 	}
 

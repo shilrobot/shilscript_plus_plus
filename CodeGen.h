@@ -23,8 +23,9 @@ struct CodeGenContext
 class CodeGen
 {
 public:
-	CodeGen(Function* func);
+	CodeGen();
 
+	void Generate(Function* func);
 private:
 	void EmitStatement(const Statement* stmt, const CodeGenContext& ctx);
 	void EmitExpr(const Expr* expr, const CodeGenContext& ctx);

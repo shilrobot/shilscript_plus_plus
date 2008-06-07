@@ -116,7 +116,8 @@ Package* Compiler::Compile(const String& pkgName)
 		for(int j=0; j < cls->GetFunctionCount(); ++j)
 		{
 			Function* func = cls->GetFunction(j);
-			CodeGen gen(func);
+			CodeGen gen;
+			gen.Generate(func);
 		}
 	}
 

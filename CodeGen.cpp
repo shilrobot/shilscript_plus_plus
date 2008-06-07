@@ -7,17 +7,26 @@
 #include "Type.h"
 #include "CompileErrors.h"
 #include "Local.h"
+#include "Variable.h"
 
 namespace SS {
 
-CodeGen::CodeGen(Function* func) : m_func(func)
+CodeGen::CodeGen()
 {
-	// TODO: link up with function
+}
+
+void CodeGen::Generate(Function* func)
+{
+	SSAssert(func != 0);
+	m_func = func;
 	m_code = new Code(func);	
 	CodeGenContext ctx;
 	EmitStatement(func->GetBody(), ctx);
-
 	m_code->Dump();
+	m_func->SetCode(m_code);
+
+	m_code = 0;
+	m_func = 0;
 }
 
 void CodeGen::EmitStatement(const Statement* stmt, const CodeGenContext& ctx)
@@ -64,15 +73,6 @@ void CodeGen::EmitStatement(const Statement* stmt, const CodeGenContext& ctx)
 		if(ifStmt->GetIfFalse())
 		{
 			CodeLabel* elseLabel = m_code->CreateLabel();
-
-			EmitExpr(ifStmt->GetCondition(), ctx);
-			m_code->jmp_false(elseLabel);
-			EmitStatement(ifStmt->GetIfTrue(), ctx);
-			m_code->PlaceLabel(elseLabel);
-		}
-		else
-		{
-			CodeLabel* elseLabel = m_code->CreateLabel();
 			CodeLabel* endLabel = m_code->CreateLabel();
 
 			EmitExpr(ifStmt->GetCondition(), ctx);
@@ -82,6 +82,15 @@ void CodeGen::EmitStatement(const Statement* stmt, const CodeGenContext& ctx)
 			m_code->PlaceLabel(elseLabel);
 			EmitStatement(ifStmt->GetIfFalse(), ctx);
 			m_code->PlaceLabel(endLabel);
+		}
+		else
+		{
+			CodeLabel* elseLabel = m_code->CreateLabel();
+
+			EmitExpr(ifStmt->GetCondition(), ctx);
+			m_code->jmp_false(elseLabel);
+			EmitStatement(ifStmt->GetIfTrue(), ctx);
+			m_code->PlaceLabel(elseLabel);
 		}
 	}
 	else if(stmt->IsA<WhileStatement>())
@@ -157,20 +166,46 @@ void CodeGen::EmitExpr(const Expr* expr, const CodeGenContext& ctx)
 		SSAssert(left != 0);
 		SSAssert(right != 0);
 
-		EmitExpr(right, ctx);
-
 		if(left->IsA<VariableRefExpr>())
 		{
-			SS_UNIMPLEMENTED;
+			const VariableRefExpr* varRefExpr = static_cast<const VariableRefExpr*>(left);
+
+			SSAssert(!varRefExpr->GetVariable()->IsConst());
+			if(varRefExpr->GetVariable()->IsStatic())
+			{
+				SSAssert(varRefExpr->GetLeft() == 0);
+
+				EmitExpr(right, ctx);
+				m_code->dup();
+				m_code->store_static(varRefExpr->GetVariable());
+			}
+			else
+			{
+				SSAssert(varRefExpr->GetLeft() != 0);
+				EmitExpr(varRefExpr->GetLeft(), ctx);
+				EmitExpr(right, ctx);
+
+				// dup_shift modifies the stack as such:
+				// {a,b} -> {b,a,b}
+				m_code->dup_shift();
+
+				m_code->store_field(varRefExpr->GetVariable());
+			}
 		}
 		else if(left->IsA<ParamRefExpr>())
 		{
 			const ParamRefExpr* paramRefExpr = static_cast<const ParamRefExpr*>(left);
+
+			EmitExpr(right, ctx);
+			m_code->dup();
 			m_code->store_arg(paramRefExpr->GetParameter()->GetID());
 		}
 		else if(left->IsA<LocalRefExpr>())
 		{
 			const LocalRefExpr* localRefExpr = static_cast<const LocalRefExpr*>(left);
+			
+			EmitExpr(right, ctx);
+			m_code->dup();
 			m_code->store_local(localRefExpr->GetLocal()->GetID());
 		}
 		else
@@ -274,14 +309,21 @@ void CodeGen::EmitExpr(const Expr* expr, const CodeGenContext& ctx)
 	{
 		const FunctionCallExpr* funcCallExpr = static_cast<const FunctionCallExpr*>(expr);
 
-		SS_UNIMPLEMENTED;
-
-		for(int i=0; i<funcCallExpr->GetParameterCount(); ++i)
+		if(funcCallExpr->GetFunction()->IsStatic())
 		{
-			// TODO: Add expr
+			SSAssert(funcCallExpr->GetLeft() == 0);
+			for(int i=0; i<funcCallExpr->GetParameterCount(); ++i)
+				EmitExpr(funcCallExpr->GetParameter(i), ctx);
+			m_code->call_static(funcCallExpr->GetFunction());
 		}
-
-		// TODO: Call opcode
+		else
+		{
+			SSAssert(funcCallExpr->GetLeft() != 0);
+			EmitExpr(funcCallExpr->GetLeft(), ctx);
+			for(int i=0; i<funcCallExpr->GetParameterCount(); ++i)
+				EmitExpr(funcCallExpr->GetParameter(i), ctx);
+			m_code->call_method(funcCallExpr->GetFunction());
+		}
 	}
 	else if(expr->IsA<CastExpr>())
 	{
@@ -320,6 +362,17 @@ void CodeGen::EmitExpr(const Expr* expr, const CodeGenContext& ctx)
 		const LocalRefExpr* localRefExpr = static_cast<const LocalRefExpr*>(expr);
 		m_code->load_local(localRefExpr->GetLocal()->GetID());
 	}
+	else if(expr->IsA<VariableRefExpr>())
+	{
+		const VariableRefExpr* varRefExpr = static_cast<const VariableRefExpr*>(expr);
+
+		if(varRefExpr->GetVariable()->IsConst())
+			m_code->load_const(varRefExpr->GetVariable());
+		else if(varRefExpr->GetVariable()->IsConst())
+			m_code->load_static(varRefExpr->GetVariable());
+		else
+			m_code->load_field(varRefExpr->GetVariable());
+	}
 	else if(expr->IsA<BoolLiteralExpr>())
 	{
 		const BoolLiteralExpr* boolLiteralExpr = static_cast<const BoolLiteralExpr*>(expr);
@@ -333,12 +386,50 @@ void CodeGen::EmitExpr(const Expr* expr, const CodeGenContext& ctx)
 		const IntLiteralExpr* intLiteralExpr = static_cast<const IntLiteralExpr*>(expr);
 		m_code->load_imm_i4(intLiteralExpr->GetValue());
 	}
+	else if(expr->IsA<FloatLiteralExpr>())
+	{
+		const FloatLiteralExpr* floatLiteralExpr = static_cast<const FloatLiteralExpr*>(expr);
+		f4 result = (float)atof(floatLiteralExpr->GetValue().c_str());
+		m_code->load_imm_f4(result);
+	}
+	else if(expr->IsA<NullLiteralExpr>())
+	{
+		m_code->load_null();
+	}
 	else if(expr->IsA<ThisExpr>())
 	{
-		// TODO:
-		//m_code->load_this();
+		m_code->load_this();
 	}
-	// TODO: Unary...
+	else if(expr->IsA<UnaryExpr>())
+	{
+		const UnaryExpr* unaryExpr = static_cast<const UnaryExpr*>(expr);
+		
+		if(unaryExpr->GetOp() == UNOP_LOG_NOT)
+		{
+			EmitExpr(unaryExpr->GetOperand(), ctx);
+			m_code->log_not();
+		}
+		else if(unaryExpr->GetOp() == UNOP_COMPLEMENT)
+		{
+			EmitExpr(unaryExpr->GetOperand(), ctx);
+			m_code->inv();
+		}
+		else if(unaryExpr->GetOp() == UNOP_NEGATIVE)
+		{
+			EmitExpr(unaryExpr->GetOperand(), ctx);
+			m_code->neg();
+		}
+		else if(unaryExpr->GetOp() == UNOP_POSITIVE)
+		{
+			EmitExpr(unaryExpr->GetOperand(), ctx);
+			// NOTHING! Positive has no effect.
+		}
+		else
+		{
+			// TODO
+			SS_UNIMPLEMENTED;
+		}
+	}
 	else
 	{
 		ReportError(expr, "Unhandled expr type in codegen: %s", expr->DynamicType()->GetName());
