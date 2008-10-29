@@ -8,21 +8,25 @@ FAIL="FAIL"
 OK="OK"
 
 BASE_PATH = os.path.join(os.getcwd(), '..')
-SSC_PATH = os.path.join(BASE_PATH, "Release/ssc.exe")
+SSC_PATH = os.path.join(BASE_PATH, "Debug/ssc.exe")
 TMP_PATH = os.path.join(BASE_PATH, "tests/tmp")
 
 class Failure:
-	def __init__(self, test, result, stdout, stderr):
+	def __init__(self, test, result, stdout, stderr, crashed):
 		self.test = test
 		self.result = result
 		self.stdout = stdout
 		self.stderr = stderr
+		self.crashed = crashed
 		
 	def dump(self):
 		print '-'*79
-		expl = "Expected success, got failure"
-		if self.result == OK:
-			expl = "Expected failure, got success"
+		if self.crashed:
+			expl = "SS++ compiler crashed"
+		else:
+			expl = "Expected success, got failure"
+			if self.result == OK:
+				expl = "Expected failure, got success"
 		print 'FAILED: %s: %s' % (self.test.name, expl)
 		print 'Stdout:'
 		for l in self.stdout.splitlines():
@@ -53,11 +57,12 @@ def AddTest(*args, **kwargs):
 	t = Test(*args, **kwargs)
 	g_tests.append(t)
 	
+					
 def QuickTest(name, result, filecontents):
 	AddTest(name,
 			Package('TestPkg', result, 
 					File('test.ss', filecontents)))
-		
+			
 class Package:
 	def __init__(self, name, result, *files):
 		self.name = name
@@ -81,19 +86,28 @@ class Package:
 			args.append(f.name)
 		p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		(stdout, stderr) = p.communicate()
-		if p.returncode == 0:
-			outcome = OK
-		else:
-			outcome = FAIL
-		if outcome == self.result:
-			sys.stdout.write(".")
+		
+		
+		if p.returncode >= 0 and p.returncode < 10:
+		
+			if p.returncode == 0:
+				outcome = OK
+			else:
+				outcome = FAIL
+				
+			if outcome == self.result:
+				sys.stdout.write(".")
+			else:
+				sys.stdout.write("F")
+				g_failures.append(Failure(test, outcome, stdout, stderr, False))
+			retval = (outcome == self.result)
 		else:
 			sys.stdout.write("F")
-			g_failures.append(Failure(test, outcome, stdout, stderr))
-			#print self.testname + " FAILED"
+			g_failures.append(Failure(test, FAIL, stdout, stderr, True))
+			retval = False
 		os.chdir(BASE_PATH)
 		shutil.rmtree(TMP_PATH)
-		return outcome == self.result
+		return retval
 		
 class File:
 	def __init__(self, name, data):

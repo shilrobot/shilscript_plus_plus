@@ -568,6 +568,10 @@
 			>
 		</File>
 		<File
+			RelativePath=".\Ref.h"
+			>
+		</File>
+		<File
 			RelativePath=".\Scope.h"
 			>
 		</File>

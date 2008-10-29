@@ -745,6 +745,7 @@ basicType returns [TypeExpr* typ = 0]
 	| kw12:"char"	{ typ = new BasicTypeExpr(BT_CHAR);		SS_LOCATE(typ, kw12); }
 	| kw13:"string"	{ typ = new BasicTypeExpr(BT_STRING);	SS_LOCATE(typ, kw13); }
 	| kw14:"object"	{ typ = new BasicTypeExpr(BT_OBJECT);	SS_LOCATE(typ, kw14); }
+	| kw15:"bool"	{ typ = new BasicTypeExpr(BT_BOOL);		SS_LOCATE(typ, kw15); }
 	;
 	
 dottedType returns [TypeExpr* typ = 0]

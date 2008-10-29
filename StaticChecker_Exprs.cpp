@@ -46,9 +46,6 @@ const OverloadVector& StaticChecker::GetBinaryOverloads(BinaryOp op) const
 {
 	switch(op)
 	{	
-
-	// TODO: Return types
-
 	OVERLOAD_BEGIN(BINOP_ADD, "+")
 		OVERLOAD_ADD(SS_T_I4, SS_T_I4, SS_T_I4)
 		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_U4)
@@ -151,6 +148,8 @@ const OverloadVector& StaticChecker::GetBinaryOverloads(BinaryOp op) const
 		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_BOOL)
 		OVERLOAD_ADD(SS_T_I8, SS_T_I8, SS_T_BOOL)
 		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_I8, SS_T_U8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_U8, SS_T_I8, SS_T_BOOL)
 		OVERLOAD_ADD(SS_T_F4, SS_T_F4, SS_T_BOOL)
 		OVERLOAD_ADD(SS_T_F8, SS_T_F8, SS_T_BOOL)
 	OVERLOAD_END
@@ -160,6 +159,8 @@ const OverloadVector& StaticChecker::GetBinaryOverloads(BinaryOp op) const
 		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_BOOL)
 		OVERLOAD_ADD(SS_T_I8, SS_T_I8, SS_T_BOOL)
 		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_I8, SS_T_U8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_U8, SS_T_I8, SS_T_BOOL)
 		OVERLOAD_ADD(SS_T_F4, SS_T_F4, SS_T_BOOL)
 		OVERLOAD_ADD(SS_T_F8, SS_T_F8, SS_T_BOOL)
 	OVERLOAD_END
@@ -169,6 +170,8 @@ const OverloadVector& StaticChecker::GetBinaryOverloads(BinaryOp op) const
 		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_BOOL)
 		OVERLOAD_ADD(SS_T_I8, SS_T_I8, SS_T_BOOL)
 		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_I8, SS_T_U8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_U8, SS_T_I8, SS_T_BOOL)
 		OVERLOAD_ADD(SS_T_F4, SS_T_F4, SS_T_BOOL)
 		OVERLOAD_ADD(SS_T_F8, SS_T_F8, SS_T_BOOL)
 	OVERLOAD_END
@@ -178,8 +181,38 @@ const OverloadVector& StaticChecker::GetBinaryOverloads(BinaryOp op) const
 		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_BOOL)
 		OVERLOAD_ADD(SS_T_I8, SS_T_I8, SS_T_BOOL)
 		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_I8, SS_T_U8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_U8, SS_T_I8, SS_T_BOOL)
 		OVERLOAD_ADD(SS_T_F4, SS_T_F4, SS_T_BOOL)
 		OVERLOAD_ADD(SS_T_F8, SS_T_F8, SS_T_BOOL)
+	OVERLOAD_END
+
+	OVERLOAD_BEGIN(BINOP_EQ, "==")
+		OVERLOAD_ADD(SS_T_BOOL, SS_T_BOOL, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_I4, SS_T_I4, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_I8, SS_T_I8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_I8, SS_T_U8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_U8, SS_T_I8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_F4, SS_T_F4, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_F8, SS_T_F8, SS_T_BOOL)
+		// TODO: Better job than just adding 'object' here...?
+		OVERLOAD_ADD(SS_T_OBJECT, SS_T_OBJECT, SS_T_BOOL)
+	OVERLOAD_END
+
+	OVERLOAD_BEGIN(BINOP_NE, "!=")
+		OVERLOAD_ADD(SS_T_BOOL, SS_T_BOOL, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_I4, SS_T_I4, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_U4, SS_T_U4, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_I8, SS_T_I8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_U8, SS_T_U8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_I8, SS_T_U8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_U8, SS_T_I8, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_F4, SS_T_F4, SS_T_BOOL)
+		OVERLOAD_ADD(SS_T_F8, SS_T_F8, SS_T_BOOL)
+		// TODO: Better job than just adding 'object' here...?
+		OVERLOAD_ADD(SS_T_OBJECT, SS_T_OBJECT, SS_T_BOOL)
 	OVERLOAD_END
 
 	default:
@@ -545,13 +578,13 @@ Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 		const Type* leftType = left->GetResultType();
 		const Type* rightType = right->GetResultType();
 
-		if(binExpr->GetOp() == BINOP_EQ ||
+		/*if(binExpr->GetOp() == BINOP_EQ ||
 			binExpr->GetOp() == BINOP_NE)
 		{
 			ReportError(expr, "== and != are temporarily unsupported");
 			return new ErrorExpr();
 		}
-		else
+		else*/
 		{
 			const OverloadVector& candidates = GetBinaryOverloads(binExpr->GetOp());
 			TypeVector types;
