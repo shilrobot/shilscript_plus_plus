@@ -1,0 +1,93 @@
+Peephole Optimizations
+
+Things to optimize:
+Not all will happen if we constant fold.
+
+swap
+swap
+
+dup
+pop
+
+load_{arg, local, field, static, const}
+pop (as many pops as necessary)
+
+ret [x]
+ret [y]
+
+load_imm <T1>, val (or load_true/false/zero/this/null whatever else)
+convert <T2>
+
+store_x
+load_x
+-> dup(whatever), store_x
+
+(load and store each after each other - no possible effect)
+load_x
+store_x
+
+load_* a
+load_* a
+--> load_imm a, dup
+
+load_imm a
+load_imm b
+{add, sub, etc. -- all bin ops)
+--> load_imm result
+
+load_imm x
+{neg, inv, inc, dec, ...} --> basically constant folding
+
+adding/subing 0, mul/div by 1, mod by 1, shifting out of range, other no-ops
+
+int multiply by 2:
+load_imm 2
+mul
+--> dup, add
+
+nop
+
+dup2
+pop
+pop
+
+(fuse identical basic blocks(!))
+(remove basic blocks that are never jumped to)
+
+load_true
+jmp_true X
+--> jmp X
+
+load_false
+jmp_true X
+--> nothing
+
+(etc. combinations)
+
+	jmp label
+label:
+	...
+(i.e., basic block fusion)
+
+ret [x]
+<everything after it in a basic block>
+-- should happen magically because rets end basic blocks & dead blocks ar removed, same for "ret; ret"
+
+remove entire chunks that have no side effects together (somehow) - i.e., if a stack goes up & down and there are no side effects, kill the
+wasted instructions
+
+Track what stack values come from dups & dup2's, and if they're never used, just never dup in the first place
+(be relatively smart, don't dup2 when just a dup would do, etc....?) -- do dup_shift too
+Also, if we pop a value, check that where it came from has any side effects. If not, replace where it came from
+with an equivalent number of pops.
+
+...code...
+load_field
+pop
+-->
+...code..
+pop
+
+jmp to ret = same as ret
+jmp to jmp = same as jmp to final target
+jmp to jmp_true = etc...

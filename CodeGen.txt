@@ -1,0 +1,18 @@
+CodeGen TO-DO's
+===============
+FloatLiteral
+CharLiteral
+++/-- (postfix and prefix)
+AssignExpr - everything except '=' needs to be implemented (e.g. +=, -=)
+new'ing classes
+
+Later:
+StringLiteral
+IndexExpr
+ForStatement
+ForEachStatement
+Switch
+Try-Catch
+etc.
+
+Don't generate code for virtual functions (whenever that starts working)

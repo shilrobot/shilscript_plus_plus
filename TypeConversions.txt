@@ -1,0 +1,32 @@
+Implicit Conversions
+
+(anything) -> itself
+
+TODO: what about casting TO char? Is char 32-bits or not?
+bool
+byte -> unsigned/signed short+int+long, float, double
+sbyte -> signed short+int+long, float, double *
+ushort -> unsigned/signed int+long, float, double
+short -> signed int+long, float, double *
+uint -> unsigned/signed long, float, double
+int -> signed long, float, double *
+ulong -> float, double
+long -> float, double
+float -> double
+double
+char -> (same as ushort?) *
+string -> object
+object
+
+(any class) -> base class, or object
+
+Explicit Conversions
+(All conversions are a superset of implicit conversions)
+
+Everything casts to object (boxing), except void of course
+bool -> any integral or FP type* (becomes 1 or 0)
+(unsigned/signed byte,short,int,long,float,double,char) -> any integral or FP type
+object -> any type (except void)
+(some class A) -> any class B that is related to A at all
+
+TODO: Conversion comparisons?

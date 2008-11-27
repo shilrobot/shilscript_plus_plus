@@ -22,7 +22,7 @@ void CodeGen::Generate(Function* func)
 	m_code = new Code(func);	
 	CodeGenContext ctx;
 	EmitStatement(func->GetBody(), ctx);
-	m_code->Dump();
+	//m_code->Dump();
 	m_func->SetCode(m_code);
 
 	m_code = 0;
@@ -340,6 +340,7 @@ void CodeGen::EmitExpr(const Expr* expr, const CodeGenContext& ctx)
 		const CastExpr* castExpr = static_cast<const CastExpr*>(expr);
 
 		// TODO: Warn if the types going in & out aren't different (i.e., an extraneous cast)
+		//       Problem is it's hard to know if it's done by the user or inserted by the code
 
 		SSAssert(castExpr->GetType() != 0);
 		SSAssert(castExpr->GetRight() != 0);

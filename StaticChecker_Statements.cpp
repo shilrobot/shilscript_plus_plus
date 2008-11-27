@@ -68,6 +68,7 @@ void StaticChecker::CheckStatement(Statement* stmt, const StatementContext& ctx)
 		newCtx.scope = &scope;
 		newCtx.parent = &ctx;
 
+
 		for(int i=0; i < blockStmt->GetStatementCount(); ++i)
 			CheckStatement(blockStmt->GetStatement(i), newCtx);
 	}
@@ -75,7 +76,7 @@ void StaticChecker::CheckStatement(Statement* stmt, const StatementContext& ctx)
 	{
 		ExprStatement* exprStmt = dynamic_cast<ExprStatement*>(stmt);
 
-		std::cout << DumpExpr(exprStmt->GetExpr()) << std::endl;
+		//std::cout << DumpExpr(exprStmt->GetExpr()) << std::endl;
 
 		ExprContext exprCtx;
 		exprCtx.stmtCtx = &ctx;
@@ -237,6 +238,8 @@ void StaticChecker::CheckStatement(Statement* stmt, const StatementContext& ctx)
 				//local->SetInitExpr(initExpr);
 
 				local->SetID(ctx.func->GetLocalCount());
+				local->SetConst(localDefStmt->IsConst());
+				local->SetStatic(localDefStmt->IsStatic());
 
 				ctx.func->AddLocal(local);
 				scope->Add(local);
@@ -252,7 +255,6 @@ void StaticChecker::CheckStatement(Statement* stmt, const StatementContext& ctx)
 	// todo: foreach
 	// todo: switch
 	// todo: try-catch
-	// todo: variable def.
 	else
 	{
 		// Not implemented...

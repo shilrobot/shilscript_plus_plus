@@ -5,6 +5,10 @@
 #include "Compiler.h"
 #include "Package.h"
 
+// temp.
+#include "grammar/SSLexer.hpp"
+#include <windows.h>
+
 namespace SS {
 
 const String SSC_NAME = "ssc";
@@ -112,6 +116,7 @@ public:
 		Compiler compiler;
 		compiler.SetCompilationListener(this);
 
+
 		for(StringList::iterator it = m_files.begin(); it != m_files.end(); ++it)
 		{
 			std::ifstream infile(it->c_str());
@@ -124,8 +129,6 @@ public:
 				compiler.ReportMessage(msg);
 				continue;
 			}
-
-			compiler.Parse(*it, infile);
 		}
 
 		Package* pkg = compiler.Compile(m_pkgName);

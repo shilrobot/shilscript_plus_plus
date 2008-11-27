@@ -280,7 +280,7 @@ Expr* StaticChecker::CheckLValue(Expr* expr, const ExprContext& ctx)
 		return xformed;
 	else if(!xformed->IsLValue())
 	{
-		ReportError(expr, "Expected an lvalue expression, got a non-value");
+		ReportError(expr, "Expected an lvalue expression, got a non-lvalue");
 		return new ErrorExpr();
 	}
 	else
@@ -304,7 +304,7 @@ Expr* StaticChecker::CheckRValue(Expr* expr, const ExprContext& ctx)
 		return xformed;
 	else if(!xformed->IsRValue())
 	{
-		ReportError(expr, "Expected an rvalue expression, got a non-value");
+		ReportError(expr, "Expected an rvalue expression, got a non-rvalue");
 		return new ErrorExpr();
 	}
 	else
@@ -757,7 +757,7 @@ Expr* StaticChecker::CheckExpr(Expr* expr, const ExprContext& ctx)
 		}
 		else
 		{
-			ReportError(castExpr, "Cannot convert from %s to %s", castExpr->GetType()->GetName().c_str(), right->GetResultType()->GetName());
+			ReportError(castExpr, "Cannot convert from %s to %s", castExpr->GetType()->GetName().c_str(), right->GetResultType()->GetName().c_str());
 			return new ErrorExpr();
 		}
 	}

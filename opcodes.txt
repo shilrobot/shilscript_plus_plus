@@ -15,7 +15,7 @@ div {a, b} -> {c}
 mod {a, b} -> {c}
 shl {a, b} -> {c}
 shr {a, b} -> {c}
-(TODO: Separate sar and shr, for sign extend & zero extend?)
+(TODO: Separate sar and shr, for sign extend & zero extend? -- actually, >> will probably be sign extend anyhow, check C#?)
 inv {a} -> {b} (Bitwise complement -- maybe this is so rare that we can just XOR by all one's though -- become NOT?)
 and {a, b} -> {c}
 or  {a, b} -> {c}

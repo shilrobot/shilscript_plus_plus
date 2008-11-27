@@ -1,0 +1,90 @@
+Static Checking To-Do List
+
+Expression Implementations
+==========================
+CharLiteralExpr - Needs to hold value
+StringLiteralExpr - Needs to hold value
+IntLiteralExpr - Need to think how we deal with uints & longs
+FloatLiteralExpr - Similar to Int, needs to parse & deal with doubles
+BinaryExpr - != and == don't work. (kind of big) ***
+			 Needs better error messages w.r.t. overloading.
+UnaryExpr - Needs better error messages w.r.t. overloading.
+AssignExpr - Needs support for things besides = (need to decide on how that will work)
+CallExpr - Support for overloading.
+		   Support for calling constructors.
+IndexExpr - NYI (we need an array type before this is useful anyhow - very low priority)
+MemberExpr - NYI (big-ish) ***
+
+BoolLiteralExpr - Done
+NullLiteralExpr - Done
+ThisExpr - Done
+CastExpr - Done
+TernaryExpr - Done
+NameExpr - Done
+
+TODO: MEMORY TRACKING
+TODO: Constant folding
+TODO: Clean up casting where necessary. Current stuff is rather meh
+TODO: Comma operator? bleh.
+TODO: Need to preserve line info on transformed exprs so we can error on them later
+
+Statement Implementations
+=========================
+Throw - NYI
+Expression statement - Must check that output value isn't a 'pseudovalue' (although perhaps it doesn't matter)
+For - NYI
+Foreach - NYI
+Switch - NYI
+Try-Catch - NYI
+
+Local def - Done
+While - Done
+Do-While - Done
+If - Done
+Empty - Done
+Break - Done
+Continue - Done
+Return - Done
+Block - Done
+
+TODO: Error if all flows don't result in a return (if it doesn't return void) (VARIABLE FLOW ANALYSIS)
+TODO: Error if we use uninited variables (VARIABLE FLOW ANALYSIS)
+
+Assign Ops
+==========
+
+LHS must always be an LValue
+
++=
+-=
+*=
+/=
+
+LHS must be integer or float, rhs must convert to lhs type
+
+%=
+
+LHS must be integer or float, rhs must convert to lhs type
+(we can do % on floats)
+
+**=
+
+LHS must be float, RHS must be float
+
+&=
+|=
+^=
+
+LHS must be int, RHS must convert to same type
+
+<<=
+>>=
+
+LHS must be int, RHS must convert to i4
+
+&&=
+||=
+
+TODO: How should short circuiting work with this? >:|
+LHS & RHS must be bool (these are very LOW PRIORITY)
+
